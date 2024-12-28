@@ -1,0 +1,3 @@
+[submodule "bodysegmentation"]
+	path = bodysegmentation
+	url = https://github.com/facebookresearch/sapiens
