@@ -3,7 +3,7 @@ import argparse
 import logging
 import sys
 from preprocess.trim_synced_streams import trim_videos
-from BackgroundMatting.demo import background_matting
+from BiRefNet.demo import background_matting
 
 # Setup logging configuration
 logging.basicConfig(
@@ -63,6 +63,7 @@ def calibrate_cameras(args):
     os.chdir('..')
 
 def background_mask(args):
+    os.chdir('BiRefNet')
     # Variables (these would normally come from user input or environment variables)
     base_path = args.root_dir
     output_folder = os.path.join(args.output, 'background_matting')
@@ -82,6 +83,7 @@ def body_segmentation(args):
     # Command 0: Run Sapiens
     sapiens_command = f"bash seg.sh {input_path} {output_folder}"
     run_command(sapiens_command)
+    os.chdir('../../../../../..')
 
 def main(args):
     base_path = args.root_dir
@@ -119,6 +121,6 @@ if __name__ == "__main__":
     parser.add_argument('--calibrate', action='store_true', help="Calibrate cameras")
     parser.add_argument('--background_matting', action='store_true', help="Run background matting")
     parser.add_argument('--sapiens', action='store_true', help="Run Sapiens")
-    
+
     args = parser.parse_args()
     main(args)

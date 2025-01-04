@@ -5,14 +5,14 @@ from einops import rearrange
 from kornia.filters import laplacian
 from huggingface_hub import PyTorchModelHubMixin
 
-from config import Config
-from dataset import class_labels_TR_sorted
-from models.backbones.build_backbone import build_backbone
-from models.modules.decoder_blocks import BasicDecBlk, ResBlk
-from models.modules.lateral_blocks import BasicLatBlk
-from models.modules.aspp import ASPP, ASPPDeformable
-from models.refinement.refiner import Refiner, RefinerPVTInChannels4, RefUNet
-from models.refinement.stem_layer import StemLayer
+from ..config import Config
+from ..dataset import class_labels_TR_sorted
+from ..models.backbones.build_backbone import build_backbone
+from ..models.modules.decoder_blocks import BasicDecBlk, ResBlk
+from ..models.modules.lateral_blocks import BasicLatBlk
+from ..models.modules.aspp import ASPP, ASPPDeformable
+from ..models.refinement.refiner import Refiner, RefinerPVTInChannels4, RefUNet
+from ..models.refinement.stem_layer import StemLayer
 
 
 def image2patches(image, grid_h=2, grid_w=2, patch_ref=None, transformation='b c (hg h) (wg w) -> (b hg wg) c h w'):

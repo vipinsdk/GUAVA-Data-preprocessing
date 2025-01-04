@@ -30,14 +30,14 @@ The `calibrate` option performs intrinsic and extrinsic camera calibration using
 ### 3. Background Matting
 The `background_matting` option applies background matting to the video streams. In this repository we are using "BiReFNet" model
 
-- **Additional Documentation**: See the [Background Matting](BackgroundMatting/README.md).
+- **Additional Documentation**: See the [Background Matting](BiRefNet/README.md).
 
 ---
 
 ### 4. Body Segmentation (Sapiens)
 The `sapiens` option runs body segmentation using the Sapiens model.
 
-- **Additional Documentation**: See the [Body Segmentation](bodysegmentation/lite/docs/SEG_README.md).
+- **Additional Documentation**: See the [Body Segmentation](sapiens/lite/docs/SEG_README.md).
 
 ## Logging
 

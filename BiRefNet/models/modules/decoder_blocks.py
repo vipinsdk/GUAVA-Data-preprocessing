@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from models.modules.aspp import ASPP, ASPPDeformable
-from config import Config
+from BiRefNet.models.modules.aspp import ASPP, ASPPDeformable
+from BiRefNet.config import Config
 
 
 config = Config()

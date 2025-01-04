@@ -36,3 +36,6 @@ dependencies:
       - setuptools==59.5.0
       - tensorboard==2.8.0
       - pytorch-lightning==1.5.0
+      - natsort
+      - spconv-cu116
+      - pyrender

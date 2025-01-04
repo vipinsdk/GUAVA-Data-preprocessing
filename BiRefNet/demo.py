@@ -3,8 +3,8 @@ from PIL import Image
 import torch
 import os
 from torchvision import transforms
-from models.birefnet import BiRefNet
-from utils import check_state_dict
+from .models.birefnet import BiRefNet
+from .utils import check_state_dict
 from tqdm import tqdm
 import argparse
 
