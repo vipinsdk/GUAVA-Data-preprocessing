@@ -16,6 +16,7 @@ Ensure all necessary dependencies are installed by checking the `environment.yml
 ## Tasks Overview
 
 ### 1. Trim Videos
+
 The `trim` option processes and trims synchronized video streams based on the start and end sequences for each video.
 ---
 
