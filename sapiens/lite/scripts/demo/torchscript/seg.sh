@@ -19,6 +19,10 @@ MODEL_NAME='sapiens_1b'; CHECKPOINT=$SAPIENS_CHECKPOINT_ROOT/seg/checkpoints/sap
 
 OUTPUT=$OUTPUT/$MODEL_NAME
 
+if [ -n "$3" ]; then
+  CHECKPOINT=$3
+fi
+
 ##-------------------------------------inference-------------------------------------
 RUN_FILE='demo/vis_seg.py'
 

@@ -4,6 +4,7 @@ import logging
 import sys
 from preprocess.trim_synced_streams import trim_videos
 from BiRefNet.demo import background_matting
+from preprocess.extract_video import extract_video
 
 # Setup logging configuration
 logging.basicConfig(
@@ -62,28 +63,25 @@ def calibrate_cameras(args):
     # change to the root directory
     os.chdir('..')
 
-def background_mask(args):
-    os.chdir('BiRefNet')
-    # Variables (these would normally come from user input or environment variables)
-    base_path = args.root_dir
-    output_folder = os.path.join(args.output, 'background_matting')
-    os.mkdir(output_folder, exist_ok=True)
+def background_mask(input_path, output_path):
+    if os.path.exists(output_path) and os.listdir(os.path.join(output_path, 'images')):
+        logging.info(f"Output folder {output_path} already exists.")
+    else:
+        os.makedirs(output_path, exist_ok=True)
+        background_matting(input_path, output_path)
+    
 
-    input_path = os.path.join(base_path, 'videos', 'source')
-    background_matting(input_path, output_folder)
-
-def body_segmentation(args):
-    # Variables (these would normally come from user input or environment variables)
-    base_path = args.root_dir
-    os.chdir('bodysegmentation/lite/scripts/demo/torchscript')
-    input_path = os.path.join(base_path, 'videos', 'source')
-    output_folder = os.path.join(args.output, 'BodySegmentation')
-    os.mkdir(output_folder, exist_ok=True)
-
-    # Command 0: Run Sapiens
-    sapiens_command = f"bash seg.sh {input_path} {output_folder}"
-    run_command(sapiens_command)
-    os.chdir('../../../../../..')
+def body_segmentation(input_path, output_path, model_path):
+    os.chdir('sapiens/lite/scripts/demo/torchscript')
+    if os.path.exists(output_path) and os.listdir(output_path):
+        logging.info(f"Output folder {output_path} already exists.")
+        os.chdir('../../../../../..')
+    else:
+        os.makedirs(output_path, exist_ok=True)
+        # Command 0: Run Sapiens
+        sapiens_command = f"bash seg.sh {input_path} {output_path} {model_path}"
+        run_command(sapiens_command)
+        os.chdir('../../../../../..')
 
 def main(args):
     base_path = args.root_dir
@@ -103,11 +101,29 @@ def main(args):
     if args.calibrate:
         calibrate_cameras(args)
     
+    input = os.path.join(base_path, 'videos')
+    assert os.path.exists(input), f"Input directory {input} does not exist."
+
+    source = os.path.join(input, 'source')
+    if not os.path.exists(source):
+        extract_video(input, target_fps=30)
+    else:
+        logging.info("Frames already extracted.")
+
     if args.background_matting:
-        background_mask(args)
+        model_path = 'BiRefNet/models/BiRefNet-general-epoch_244.pth'
+        if not os.path.exists(model_path):
+            os.system('wget https://github.com/ZhengPeng7/BiRefNet/releases/download/v1/BiRefNet-general-epoch_244.pth -o BiRefNet/models/BiRefNet-general-epoch_244.pth')
+
+        assert os.path.exists(source), f"Input directory {source} does not exist."
+        output_folder = os.path.join(args.output, 'background_matting')
+        background_mask(input, output_folder)
 
     if args.sapiens:
-        body_segmentation(args)  
+        assert os.path.exists(source), f"Input directory {source} does not exist."
+        output_folder = os.path.join(args.output, 'BodySegmentation')
+        model_path = args.sapiens_lite_ckpt
+        body_segmentation(source, output_folder, model_path)  
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data preprocessing for GUAVA')
@@ -121,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument('--calibrate', action='store_true', help="Calibrate cameras")
     parser.add_argument('--background_matting', action='store_true', help="Run background matting")
     parser.add_argument('--sapiens', action='store_true', help="Run Sapiens")
+    parser.add_argument('--sapiens_lite_ckpt', type=str, default='', help="Path to the Sapiens Lite checkpoint")
 
     args = parser.parse_args()
     main(args)

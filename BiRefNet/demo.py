@@ -65,26 +65,13 @@ def background_matting(folder_path, output_folder):
         image_masked = image.resize((1024, 1024))
         image_masked.putalpha(pred_pil)
 
-        # white_bg = Image.new("RGBA", image_masked.size, (255, 255, 255))
-        # image_masked = Image.alpha_composite(white_bg, image_masked)
-        
-        # Save the results
-        relative_path = os.path.relpath(os.path.dirname(image_file), folder_path)
-        output_dir = os.path.join(output_folder, relative_path)
-        
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
         image_file = os.path.splitext(os.path.basename(image_file))[0]
         parts = image_file.split('_')
         parts[0] = str(int(parts[0]) - 1)
         image_file = parts[1][1:] + '_' + parts[0].zfill(2) + '.png'
-
-        output_filename_mask =  f"images/{image_file}"
-        output_filename_pred =  f"fg_masks/{image_file}"
         
-        output_path_mask = os.path.join(output_dir, output_filename_mask)
-        output_path_pred = os.path.join(output_dir, output_filename_pred)
+        output_path_mask = os.path.join(images_out, image_file)
+        output_path_pred = os.path.join(masks_out, image_file)
         
         image_masked.resize(scaled_size).save(output_path_mask, format="PNG")
         pred_pil.resize(scaled_size).save(output_path_pred, format="PNG")

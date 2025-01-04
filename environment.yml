@@ -39,3 +39,4 @@ dependencies:
       - natsort
       - spconv-cu116
       - pyrender
+      - ffmpeg-python
