@@ -1,0 +1,38 @@
+name: guava
+channels:
+  - pytorch
+  - nvidia
+  - defaults   
+dependencies:
+  - python=3.10     
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=12.1
+  - pip            
+  - pip:
+      - opencv-python
+      - tqdm
+      - json-tricks
+      - numpy<2
+      - timm
+      - scipy
+      - scikit-image
+      - kornia
+      - einops
+      - prettytable
+      - huggingface-hub>0.25
+      - accelerate
+      - mediapipe
+      - ipdb
+      - joblib
+      - yacs
+      - tabulate
+      - termcolor
+      - git+https://github.com/mattloper/chumpy.git
+      - func_timeout
+      - ultralytics
+      - gdown
+      - setuptools==59.5.0
+      - tensorboard==2.8.0
+      - pytorch-lightning==1.5.0

@@ -1,6 +1,1 @@
-[submodule "bodysegmentation"]
-	path = bodysegmentation
-	url = https://github.com/facebookresearch/sapiens
-[submodule "BackgroundMatting"]
-	path = BackgroundMatting
-	url = https://github.com/ZhengPeng7/BiRefNet
+
