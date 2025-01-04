@@ -39,6 +39,11 @@ The `sapiens` option runs body segmentation using the Sapiens model.
 
 - **Additional Documentation**: See the [Body Segmentation](sapiens/lite/docs/SEG_README.md).
 
+
+### Example Usage
+```command
+python main.py --root_dir /home/vippin/thesis/extra --output /home/vippin/thesis/extra/demo_guava --sapiens --calibrate --background_matting
+```
 ## Logging
 
 Logs for each run are saved in `output.log`. The logging includes detailed information about each step and errors, if any.
