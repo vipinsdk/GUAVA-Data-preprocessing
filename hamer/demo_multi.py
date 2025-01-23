@@ -11,8 +11,12 @@ from hamer.utils import recursive_to, rotmat_to_aa, aa_to_rotmat
 from hamer.datasets.vitdet_dataset import ViTDetDataset, DEFAULT_MEAN, DEFAULT_STD
 from hamer.utils.renderer import Renderer, cam_crop_to_full
 from hamer.datasets.utils import fliplr_params
+from hamer.models.losses import Keypoint2DLoss
+
+keypoint_loss = Keypoint2DLoss(loss_type='MSE')
 
 LIGHT_BLUE=(0.65098039,  0.74117647,  0.85882353)
+hand_map = {0:"lefthand", 1:"righthand"}
 
 from vitpose_model import ViTPoseModel
 
@@ -261,16 +265,13 @@ def main():
                         else:
                             final_img = np.concatenate([input_patch, regression_img], axis=1)
 
-                        cv2.imwrite(os.path.join(args.out_folder, f'{img_fn}_{person_id}.png'), 255*final_img[:, :, ::-1])
-
-                        # # landmark
-                        # image_kpt = plot_all_kpts(image, out['pred_keypoints_2d'][0].cpu().numpy(), color='r')
-                        # cv2.imwrite(os.path.join(args.out_folder, f'{img_fn}_{person_id}_point.jpg'), image_kpt)
+                        # cv2.imwrite(os.path.join(args.out_folder, f'{img_fn}_{person_id}.png'), 255*final_img[:, :, ::-1])
 
                         #reproject keypoints to original image
                         keypoints_reprojected = transform_points_to_original(out['pred_keypoints_2d'][n].cpu().numpy(), batch['trans'][n].cpu().numpy())
-                        lmk_img = plot_all_kpts(img_cv2, keypoints_reprojected, color='b')
-                        cv2.imwrite(os.path.join(args.out_folder, f'{img_fn}_{person_id}_lmk.png'), lmk_img[:, :, ::-1])
+                        
+                        # lmk_img = plot_all_kpts(img_cv2, keypoints_reprojected, color='b')
+                        # cv2.imwrite(os.path.join(args.out_folder, f'{img_fn}_{person_id}_lmk.png'), lmk_img[:, :, ::-1])
                             # keypoints_reprojected[:, 0] = 1080 - keypoints_reprojected[:, 0] - 1
                         
                         # Add all verts and cams to list
@@ -284,28 +285,34 @@ def main():
 
                         # Save all meshes to disk
                         if args.save_mesh:
+                            mesh_folder = os.path.join(args.out_folder, 'meshes')
+                            os.makedirs(mesh_folder, exist_ok=True)
                             camera_translation = cam_t.copy()
                             tmesh = renderer.vertices_to_trimesh(verts, camera_translation, LIGHT_BLUE, is_right=is_right)
-                            tmesh.export(os.path.join(args.out_folder, f'{img_fn}_{person_id}.obj'))
+                            tmesh.export(os.path.join(mesh_folder, f'{img_fn}_{hand_map[person_id]}.obj'))
                         
-                        if args.save_params:
-                            params_out = {}
-                            params = out['pred_mano_params']
-                            for key, val in params.items():
-                                if isinstance(val, torch.Tensor):
-                                    params_out[key] = val[n].detach().cpu().numpy()
-                            
-                            if person_id == 0:        
-                                params_out['hand_pose'] = rotmat_to_aa(params_out['hand_pose']).reshape(45)
-                                params_out, _ = fliplr_params(params_out, params_out)
-                                params_out['hand_pose'] = aa_to_rotmat(torch.from_numpy(params_out['hand_pose']).reshape(15,3))
-                                
-                            params_out['pred_keypoints_3d'] = out['pred_keypoints_3d'][n].detach().cpu().numpy()
-                            params_out['pred_keypoints_2d'] = keypoints_reprojected
-                            mano_param_path = os.path.join(args.out_folder, f'{img_fn}_{person_id}.npz')
-                            # with open(params_path, 'w') as f:
-                            #     json.dump(params_out, f, indent=4)
-                            np.savez(mano_param_path, **params_out)
+                if args.save_params:
+                    params_out = {
+                        "righthand" : {},
+                        "lefthand" : {}
+                    }
+                    params = out['pred_mano_params']
+                    for key, val in params.items():
+                        if isinstance(val, torch.Tensor):
+                            params_out[hand_map[person_id]][key] = val[n].detach().cpu().numpy()
+                    
+                    if person_id == 0:        
+                        params_out[hand_map[person_id]]['hand_pose'] = rotmat_to_aa(params_out['hand_pose']).reshape(45)
+                        params_out[hand_map[person_id]], _ = fliplr_params(params_out, params_out)
+                        params_out[hand_map[person_id]]['hand_pose'] = aa_to_rotmat(torch.from_numpy(params_out['hand_pose']).reshape(15,3))
+                        
+                    params_out[hand_map[person_id]]['pred_keypoints_3d'] = out['pred_keypoints_3d'][n].detach().cpu().numpy()
+                    params_out[hand_map[person_id]]['pred_keypoints_2d'] = keypoints_reprojected
+                    mano_param_path = os.path.join(args.out_folder,'mano_params',f'{img_fn}.npz')
+                    os.makedirs(mano_param_path, exist_ok=True)
+                    # with open(params_path, 'w') as f:
+                    #     json.dump(params_out, f, indent=4)
+                    np.savez(mano_param_path, **params_out)
 
                 # Render front view
                 if args.full_frame and len(all_verts) > 0:

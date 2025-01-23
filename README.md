@@ -9,9 +9,11 @@ To get started, create a Conda environment using the provided `environment.yml` 
 ```bash
 conda env create -f environment.yml
 conda activate guava
+export CUDA_HOME=$CONDA_PREFIX
+
+pip install "git+https://github.com/facebookresearch/pytorch3d.git@stable"
 
 cd hamer
-export CUDA_HOME=$CONDA_PREFIX
 pip install -e .[all]
 pip install -v -e third-party/ViTPose
 

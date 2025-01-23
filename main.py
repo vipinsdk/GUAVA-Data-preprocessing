@@ -134,6 +134,12 @@ def main(args):
     
     if args.flame_params:
         logging.info("Generating FLAME parameters")
+        if args.flame_config is None:
+            logging.error("Please provide a config file for metrical tracker.")
+            sys.exit(1)
+        os.chdir('metrical-tracker_multiview')
+        flame_command = f"python tracker.py --cfg configs/actors/{args.flame_config}"
+        run_command(flame_command)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data preprocessing for GUAVA')
@@ -151,6 +157,7 @@ if __name__ == "__main__":
     parser.add_argument('--annots', action='store_true', help="To generate annotations (mediapipe)")
     parser.add_argument('--mode', type=str, default='mp-holistic', help="Mode for generating annotations")
     parser.add_argument('--flame_params', action='store_true', help="To generate flame parameters")
+    parser.add_argument('--flame_config', type=str, default=None, help="config file for metrical tracker")
     parser.add_argument('--mano_params', action='store_true', help="To generate mano parameters")
     args = parser.parse_args()
     main(args)

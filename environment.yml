@@ -5,6 +5,7 @@ channels:
   - iopath
   - conda-forge
   - nvidia
+  - nvidia/label/cuda-12.1.0
   - defaults   
 dependencies:
   - python=3.10     
@@ -24,37 +25,37 @@ dependencies:
   - charset-normalizer
   - colorama
   - cryptography
-  - cuda
-  - cuda-cccl
-  - cuda-command-line-tools
-  - cuda-compiler
-  - cuda-cudart
-  - cuda-cudart-dev
-  - cuda-cuobjdump
-  - cuda-cupti
-  - cuda-cuxxfilt
-  - cuda-driver-dev
-  - cuda-gdb
-  - cuda-libraries
-  - cuda-libraries-dev
+  - cuda=12.1
+  - cuda-cccl=12.1
+  - cuda-command-line-tools=12.1
+  - cuda-compiler=12.1
+  - cuda-cudart=12.1
+  - cuda-cudart-dev=12.1
+  - cuda-cuobjdump=12.1
+  - cuda-cupti=12.1
+  - cuda-cuxxfilt=12.1
+  - cuda-driver-dev=12.1
+  - cuda-gdb=12.1
+  - cuda-libraries=12.1
+  - cuda-libraries-dev=12.1
   - cuda-memcheck
-  - cuda-nsight
-  - cuda-nsight-compute
-  - cuda-nvcc
-  - cuda-nvdisasm
-  - cuda-nvml-dev
-  - cuda-nvprof
-  - cuda-nvprune
-  - cuda-nvrtc
-  - cuda-nvrtc-dev
-  - cuda-nvtx
-  - cuda-nvvp
-  - cuda-runtime
-  - cuda-samples
-  - cuda-sanitizer-api
-  - cuda-toolkit
-  - cuda-tools
-  - cuda-visual-tools
+  - cuda-nsight=12.1
+  - cuda-nsight-compute=12.1
+  - cuda-nvcc=12.1
+  - cuda-nvdisasm=12.1
+  - cuda-nvml-dev=12.1
+  - cuda-nvprof=12.1
+  - cuda-nvprune=12.1
+  - cuda-nvrtc=12.1
+  - cuda-nvrtc-dev=12.1
+  - cuda-nvtx=12.1
+  - cuda-nvvp=12.1
+  - cuda-runtime=12.1
+  # - cuda-samples=12.1
+  - cuda-sanitizer-api=12.1
+  - cuda-toolkit=12.1
+  - cuda-tools=12.1
+  - cuda-visual-tools=12.1
   - flit-core
   - freetype
   - fvcore
@@ -122,7 +123,7 @@ dependencies:
   # - pytorch=1.13.0=py3.9_cuda11.6_cudnn8.3.2_0
   # - pytorch-cuda=11.6=h867d48c_1
   - pytorch-mutex
-  - pytorch3d
+  # - pytorch3d
   - pyyaml
   - readline
   - requests
