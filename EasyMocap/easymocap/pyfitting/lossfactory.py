@@ -75,17 +75,19 @@ class LossRegPoses:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
 
-    def reg_hand(self, poses, **kwargs):
+    def reg_hand(self, right_hand_pose, left_hand_pose, **kwargs):
         "regulizer for hand pose"
         assert self.cfg.model in ['smplh', 'smplx']
-        hand_poses = poses[:, 66:78]
+        # hand_poses = poses[:, 66:78]
+        hand_poses = torch.cat([right_hand_pose, left_hand_pose], dim=1)
         loss = funcl2(hand_poses)
-        return loss/poses.shape[0]
+        return loss/right_hand_pose.shape[0]
 
-    def reg_head(self, poses, **kwargs):
+    def reg_head(self, jaw_pose, reye_pose, leye_pose, **kwargs):
         "regulizer for head pose"
         assert self.cfg.model in ['smplx']
-        poses = poses[:, 78:]
+        # poses = poses[:, 78:]
+        poses = torch.cat([jaw_pose, reye_pose, leye_pose], dim=1)
         loss = funcl2(poses)
         return loss/poses.shape[0]
 
@@ -94,12 +96,13 @@ class LossRegPoses:
         assert self.cfg.model in ['smplh', 'smplx']
         return torch.sum(expression**2)
 
-    def reg_body(self, poses, **kwargs):
+    def reg_body(self, body_pose, **kwargs):
         "regulizer for body poses"        
         if self.cfg.model in ['smplh', 'smplx']:
-            poses = poses[:, :66]
-        loss = funcl2(poses)
-        return loss/poses.shape[0]
+            # poses = poses[:, :66]
+            pass
+        loss = funcl2(body_pose)
+        return loss/body_pose.shape[0]
     
     def __str__(self) -> str:
         return 'Loss function for Regulizer of Poses'
@@ -132,6 +135,15 @@ class LossRegPosesZero:
 
     def __call__(self, poses, **kwargs):
         "regulizer for zero joints"
+        # poses = torch.cat(
+        #     [kwargs['body_pose'].reshape(-1, 22, 3, 3),
+        #      kwargs['jaw_pose'].reshape(-1, 1, 3, 3),
+        #      kwargs['leye_pose'].reshape(-1, 1, 3, 3),
+        #      kwargs['reye_pose'].reshape(-1, 1, 3, 3),
+        #      kwargs['left_hand_pose'].reshape(-1, 15, 3, 3),
+        #      kwargs['right_hand_pose'].reshape(-1, 15, 3, 3)],
+        #     dim=1)
+        poses = kwargs['body_pose'].reshape(-1, 22*3)
         return torch.sum(torch.abs(poses[:, self.idx]))/poses.shape[0]
     
     def __str__(self) -> str:
@@ -193,24 +205,27 @@ class LossSmoothPoses:
             loss += funcl2(poses_[1:-1] - poses_interp[1:-1])
         return loss/(self.nFrames-2)/self.nViews
     
-    def poses(self, poses, **kwargs):
+    def poses(self, body_pose, **kwargs):
         "smooth body poses"
         if self.cfg.model in ['smplh', 'smplx']:
-            poses = poses[:, :66]
-        return self._poses(poses)
+            pass
+            # poses = poses[:, :66]
+        return self._poses(body_pose)
     
-    def hands(self, poses, **kwargs):
+    def hands(self, right_hand_pose, left_hand_pose, **kwargs):
         "smooth hand poses"
         if self.cfg.model in ['smplh', 'smplx']:
-            poses = poses[:, 66:66+12]
+            # poses = poses[:, 66:66+12]
+            poses = torch.cat([right_hand_pose, left_hand_pose], dim=1)
         else:
             raise NotImplementedError
         return self._poses(poses)
     
-    def head(self, poses, **kwargs):
+    def head(self, jaw_pose, reye_pose, leye_pose, **kwargs):
         "smooth head poses"
         if self.cfg.model == 'smplx':
-            poses = poses[:, 66+12:]
+            # poses = poses[:, 66+12:]
+            poses = torch.cat([jaw_pose, reye_pose, leye_pose], dim=1)
         else:
             raise NotImplementedError
         return self._poses(poses)
@@ -286,14 +301,30 @@ class LossRepro:
 class LossInit:
     def __init__(self, params, cfg) -> None:
         self.norm = 'l2'
-        self.poses = torch.Tensor(params['poses']).to(cfg.device)
+        poses = np.concatenate(
+            [params['body_pose'].reshape(-1, 22, 3),
+             params['jaw_pose'].reshape(-1, 1, 3),
+             params['leye_pose'].reshape(-1, 1, 3),
+             params['reye_pose'].reshape(-1, 1, 3),
+             params['left_hand_pose'].reshape(-1, 15, 3),
+             params['right_hand_pose'].reshape(-1, 15, 3)],
+            axis=1).reshape(-1, 165)
+        self.poses = torch.Tensor(poses).to(cfg.device)
         self.shapes = torch.Tensor(params['shapes']).to(cfg.device)
 
     def init_poses(self, poses, **kwargs):
         "distance to poses_0"
+        poses = torch.cat(
+            [kwargs['body_pose'].reshape(-1, 22, 3),
+             kwargs['jaw_pose'].reshape(-1, 1, 3),
+             kwargs['leye_pose'].reshape(-1, 1, 3),
+             kwargs['reye_pose'].reshape(-1, 1, 3),
+             kwargs['left_hand_pose'].reshape(-1, 15, 3),
+             kwargs['right_hand_pose'].reshape(-1, 15, 3)],
+            dim=1).reshape(-1, 165).to(self.poses.device)
         if self.norm == 'l2':
             return torch.sum((poses - self.poses)**2)/poses.shape[0]
-    
+
     def init_shapes(self, shapes, **kwargs):
         "distance to shapes_0"
         if self.norm == 'l2':

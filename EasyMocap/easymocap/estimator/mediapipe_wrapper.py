@@ -212,7 +212,7 @@ class Detector:
             # results.face_landmarks
         return annots_all, res_img
 
-def extract_2d(image_root, annot_root, image_save, config, mode='holistic'):
+def extract_2d(image_root, annot_root, config, mode='holistic'):
     from .wrapper_base import check_result, save_annot
     force = config.pop('force')
     if check_result(image_root, annot_root) and not force:
@@ -231,13 +231,11 @@ def extract_2d(image_root, annot_root, image_save, config, mode='holistic'):
     for imgname in tqdm(imgnames, desc='{:10s}'.format(os.path.basename(annot_root))):
         base = os.path.basename(imgname).replace(ext, '')
         annotname = join(annot_root, base+'.json')
-        img_save_name = join(image_save, imgname.split(os.sep)[-1])
         image = cv2.imread(imgname)
         annots_all, res_img = detector([image])
         annots = annots_all[0]
         annots['filename'] = os.sep.join(imgname.split(os.sep)[-2:])
         # print(img_save_name)
-        cv2.imwrite(img_save_name, res_img)
         save_annot(annotname, annots)
 
 if __name__ == "__main__":

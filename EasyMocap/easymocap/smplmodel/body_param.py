@@ -19,7 +19,7 @@ def merge_params(param_list, share_shape=True):
 
 def select_nf(params_all, nf):
     output = {}
-    for key in ['poses', 'Rh', 'Th']:
+    for key in ['jaw_pose','leye_pose','reye_pose','right_hand_pose','left_hand_pose','body_pose', 'global_orient', 'transl']:
         output[key] = params_all[key][nf:nf+1, :]
     if 'expression' in params_all.keys():
         output['expression'] = params_all['expression'][nf:nf+1, :]
@@ -29,7 +29,7 @@ def select_nf(params_all, nf):
         output['shapes'] = params_all['shapes'][nf:nf+1, :]
     return output
 
-def load_model(gender='neutral', use_cuda=True, model_type='smpl', skel_type='body25', device=None, model_path='/netscratch/jeetmal/models/easymocap/data/smplx'):
+def load_model(gender='neutral', use_cuda=True, model_type='smpl', skel_type='body25', device=None, model_path='/netscratch/jeetmal/models/easymocap/data/smplx', flame_params=None, mano_params=None):
     # prepare SMPL model
     # print('[Load model {}/{}]'.format(model_type, gender))
     import torch
@@ -53,7 +53,7 @@ def load_model(gender='neutral', use_cuda=True, model_type='smpl', skel_type='bo
             regressor_path=join(model_path, 'J_regressor_body25_smplh.txt'))
     elif model_type == 'smplx':
         body_model = SMPLlayer(join(model_path, 'smplx/SMPLX_{}.pkl'.format(gender.upper())), model_type='smplx', gender=gender, device=device,
-            regressor_path=join(model_path, 'J_regressor_body25_smplx.txt'))
+            regressor_path=join(model_path, 'J_regressor_body25_smplx.txt'), flame_param=flame_params, mano_param=mano_params)
     elif model_type == 'manol' or model_type == 'manor':
         lr = {'manol': 'LEFT', 'manor': 'RIGHT'}
         body_model = SMPLlayer(join(model_path, 'smplh/MANO_{}.pkl'.format(lr[model_type])), model_type='mano', gender=gender, device=device,

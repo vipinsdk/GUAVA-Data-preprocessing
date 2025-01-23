@@ -18,7 +18,7 @@ def optimizeShape(body_model, body_params, keypoints3d,
 
     Args:
         body_model (SMPL model)
-        params_init (DictParam): poses(1, 72), shapes(1, 10), Rh(1, 3), Th(1, 3)
+        params_init (DictParam): poses(1, 72), shapes(1, 10), global_orient(1, 3), transl(1, 3)
         keypoints (nFrames, nJoints, 3): 3D keypoints
         weight (Dict): string:float
         kintree ([[src, dst]]): list of list:int
@@ -43,6 +43,13 @@ def optimizeShape(body_model, body_params, keypoints3d,
     verbose = False
     def closure(debug=False):
         optimizer.zero_grad()
+        # pose = torch.cat([body_params['body_pose'],
+        #                   body_params['jaw_pose'],
+        #                   body_params['leye_pose'],
+        #                   body_params['reye_pose'],
+        #                   body_params['rhand_pose'],
+        #                   body_params['lhand_pose']], dim=1).to(body_params['shapes'].device)
+        # body_params['poses'] = pose
         keypoints3d = body_model(return_verts=False, return_tensor=True, only_shape=True, **body_params)
         src = keypoints3d[:, kintree[:, 0], :3] #.detach()
         dst = keypoints3d[:, kintree[:, 1], :3]
@@ -83,12 +90,14 @@ N_BODY = 25
 N_HAND = 21
 
 def interp(left_value, right_value, weight, key='poses'):
-    if key == 'Rh':
+    if key in ['jaw_pose','leye_pose','reye_pose','rhand_pose','lhand_pose','body_pose', 'global_orient', 'transl']:
         return left_value * weight + right_value * (1 - weight)
-    elif key == 'Th':
-        return left_value * weight + right_value * (1 - weight)
-    elif key == 'poses':
-        return left_value * weight + right_value * (1 - weight)
+    # if key == 'global_orient':
+    #     return left_value * weight + right_value * (1 - weight)
+    # elif key == 'transl':
+    #     return left_value * weight + right_value * (1 - weight)
+    # elif key == 'poses':
+    #     return left_value * weight + right_value * (1 - weight)
 
 def get_interp_by_keypoints(keypoints):
     if len(keypoints.shape) == 3: # (nFrames, nJoints, 3)
@@ -117,13 +126,13 @@ def get_interp_by_keypoints(keypoints):
             right = end + 1
             for nf in range(start, end+1):
                 weight = (nf - left)/(right - left)
-                for key in ['Rh', 'Th', 'poses']:
+                for key in ['jaw_pose','leye_pose','reye_pose','right_hand_pose','left_hand_pose','body_pose', 'global_orient', 'transl']:
                     params[key][nf] = interp(params[key][left], params[key][right], 1-weight, key=key)
         return params
     return interp_func
 
 def interp_by_k3d(conf, params):
-    for key in ['Rh', 'Th', 'poses']:
+    for key in ['global_orient', 'transl', 'poses']:
         params[key] = params[key].clone()
     # Totally invalid frames
     not_valid_frames = torch.nonzero(conf.sum(dim=1).squeeze() < 0.01)[:, 0].detach().cpu().numpy().tolist()
@@ -145,7 +154,7 @@ def interp_by_k3d(conf, params):
         right = end + 1
         for nf in range(start, end+1):
             weight = (nf - left)/(right - left)
-            for key in ['Rh', 'Th', 'poses']:
+            for key in ['jaw_pose','leye_pose','reye_pose','rhand_pose','lhand_pose','body_pose', 'shapes', 'global_orient', 'transl', 'expression']:
                 params[key][nf] = interp(params[key][left], params[key][right], 1-weight, key=key)
     return params
 
@@ -164,6 +173,7 @@ def get_prepare_smplx(body_params, cfg, nFrames):
         zero_pose_hand = torch.zeros((nFrames, body_params['poses'].shape[1] - 66), device=cfg.device)
     elif cfg.OPT_HAND and not cfg.OPT_EXPR and cfg.model == 'smplx':
         zero_pose_face = torch.zeros((nFrames, body_params['poses'].shape[1] - 78), device=cfg.device)
+        pass
 
     def pack(new_params):
         if not cfg.OPT_HAND and cfg.model in ['smplh', 'smplx']:
@@ -177,18 +187,23 @@ def get_optParams(body_params, cfg, extra_params):
     for key, val in body_params.items():
         body_params[key] = torch.Tensor(val).to(cfg.device)
     if cfg is None:
-        opt_params = [body_params['Rh'], body_params['Th'], body_params['poses']]
+        opt_params = [body_params['global_orient'], body_params['transl'], body_params['body_pose'], body_params['jaw_pose'], body_params['leye_pose'], body_params['reye_pose'], body_params['right_hand_pose'], body_params['left_hand_pose']]
     else:
         if extra_params is not None:
             opt_params = extra_params
         else:
             opt_params = []
         if cfg.OPT_R:
-            opt_params.append(body_params['Rh'])
+            opt_params.append(body_params['global_orient'])
         if cfg.OPT_T:
-            opt_params.append(body_params['Th'])
+            opt_params.append(body_params['transl'])
         if cfg.OPT_POSE:
-            opt_params.append(body_params['poses'])
+            opt_params.append(body_params['body_pose'])
+            opt_params.append(body_params['jaw_pose'])
+            opt_params.append(body_params['leye_pose'])
+            opt_params.append(body_params['reye_pose'])
+            opt_params.append(body_params['right_hand_pose'])
+            opt_params.append(body_params['left_hand_pose'])
         if cfg.OPT_SHAPE:
             opt_params.append(body_params['shapes'])
         if cfg.OPT_EXPR and cfg.model == 'smplx':
@@ -202,7 +217,7 @@ def _optimizeSMPL(body_model, body_params, prepare_funcs, postprocess_funcs,
 
     Args:
         body_model (SMPL model)
-        body_params (DictParam): poses(1, 72), shapes(1, 10), Rh(1, 3), Th(1, 3)
+        body_params (DictParam): poses(1, 72), shapes(1, 10), global_orient(1, 3), transl(1, 3)
         prepare_funcs (List): functions for prepare
         loss_funcs (Dict): functions for loss
         weight_loss (Dict): weight
@@ -262,12 +277,13 @@ def optimizePose3D(body_model, params, keypoints3d, weight, cfg):
 
     Args:
         body_model (SMPL model)
-        params (DictParam): poses(1, 72), shapes(1, 10), Rh(1, 3), Th(1, 3)
+        params (DictParam): poses(1, 72), shapes(1, 10), global_orient(1, 3), transl(1, 3)
         keypoints3d (nFrames, nJoints, 4): 3D keypoints
         weight (Dict): string:float
         cfg (Config): Config Node controling running mode
     """
     nFrames = keypoints3d.shape[0]
+    params['poses'] = torch.zeros((nFrames, 87), device=cfg.device)
     prepare_funcs = [
         deepcopy_tensor,
         get_prepare_smplx(params, cfg, nFrames),
@@ -278,7 +294,7 @@ def optimizePose3D(body_model, params, keypoints3d, weight, cfg):
         'smooth_body': LossSmoothBodyMean(cfg).body,
         'smooth_poses': LossSmoothPoses(1, nFrames, cfg).poses,
         'reg_poses': LossRegPoses(cfg).reg_body,
-        'init_poses': LossInit(params, cfg).init_poses,
+        'init_poses': LossInit(params, cfg).init_poses
     }
     if body_model.model_type != 'mano':
         loss_funcs['reg_poses_zero'] = LossRegPosesZero(keypoints3d, cfg).__call__
@@ -307,7 +323,7 @@ def optimizePose2D(body_model, params, bboxes, keypoints2d, Pall, weight, cfg):
 
     Args:
         body_model (SMPL model)
-        params (DictParam): poses(1, 72), shapes(1, 10), Rh(1, 3), Th(1, 3)
+        params (DictParam): poses(1, 72), shapes(1, 10), global_orient(1, 3), transl(1, 3)
         keypoints2d (nFrames, nViews, nJoints, 4): 2D keypoints of each view
         bboxes: (nFrames, nViews, 5)
         weight (Dict): string:float

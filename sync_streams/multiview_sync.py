@@ -149,7 +149,7 @@ def main():
         print("No video files found in the specified directory.")
         return
 
-    syncer = MultiVideoSyncer(video_paths, sync_indices=INITIAL_SYNC_FRAME_INDICES)
+    syncer = MultiVideoSyncer(video_paths, sync_indices=None)
     start_frame_indices = syncer.sync_videos()
     print("start synchronized frame indices:", start_frame_indices)
 

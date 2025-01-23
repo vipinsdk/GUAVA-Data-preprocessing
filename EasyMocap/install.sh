@@ -8,6 +8,7 @@ if [[ $SLURM_LOCALID == 0 ]]; then
 
    apt-get install libosmesa6-dev -y
    pip uninstall pyopengl -y && pip install pyopengl==3.1.5
+   conda install conda-forge::fvcore pytorch3d::pytorch3d -y
    
    export PYOPENGL_PLATFORM=osmesa
   # Tell other tasks we are done installing

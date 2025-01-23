@@ -53,14 +53,15 @@ def load_bodydata(model_type, model_path, gender):
         data = pickle.load(smpl_file, encoding='latin1')
     return data
 
-NUM_POSES = {'smpl': 72, 'smplh': 78, 'smplx': 66 + 12 + 9, 'mano': 9}
-NUM_SHAPES = 10
+# NUM_POSES = {'smpl': 72, 'smplh': 78, 'smplx': 66 + 12 + 9, 'mano': 9}
+NUM_POSES = {'smpl': 72, 'smplh': 78, 'smplx': 165, 'mano': 9}
+NUM_SHAPES = 300
 NUM_EXPR = 100
 class SMPLlayer(nn.Module):
     def __init__(self, model_path, model_type='smpl', gender='neutral', device=None,
         regressor_path=None,
         use_pose_blending=True, use_shape_blending=True, use_joints=True,
-        with_color=False, use_lbs=True,
+        with_color=False, use_lbs=True, use_pre_trained=True, flame_param=None, mano_param=None,
         **kwargs) -> None:
         super(SMPLlayer, self).__init__()
         dtype = torch.float32
@@ -68,6 +69,9 @@ class SMPLlayer(nn.Module):
         self.use_pose_blending = use_pose_blending
         self.use_shape_blending = use_shape_blending
         self.use_joints = use_joints
+        self.flame_params = flame_param
+        self.mano_params = mano_param
+        self.use_pre_trained = use_pre_trained
         
         if isinstance(device, str):
             device = torch.device(device)
@@ -269,13 +273,13 @@ class SMPLlayer(nn.Module):
             j0 = j0.detach().cpu().numpy()
         return j0
 
-    def convert_from_standard_smpl(self, poses, shapes, Rh=None, Th=None, expression=None):
+    def convert_from_standard_smpl(self, poses, shapes, global_orient=None, transl=None, expression=None):
         if 'torch' not in str(type(poses)):
             dtype, device = self.dtype, self.device
             poses = to_tensor(poses, dtype, device)
             shapes = to_tensor(shapes, dtype, device)
-            Rh = to_tensor(Rh, dtype, device)
-            Th = to_tensor(Th, dtype, device)
+            global_orient = to_tensor(global_orient, dtype, device)
+            transl = to_tensor(transl, dtype, device)
             if expression is not None:
                 expression = to_tensor(expression, dtype, device)
 
@@ -289,15 +293,15 @@ class SMPLlayer(nn.Module):
                                 self.weights, pose2rot=True, dtype=self.dtype, only_shape=True)
         # N x 3
         j0 = joints[:, 0, :]
-        Rh = poses[:, :3].clone()
+        global_orient = poses[:, :3].clone()
         # N x 3 x 3
-        rot = batch_rodrigues(Rh)
-        Tnew = Th + j0 - torch.einsum('bij,bj->bi', rot, j0)
+        rot = batch_rodrigues(global_orient)
+        Tnew = transl + j0 - torch.einsum('bij,bj->bi', rot, j0)
         poses[:, :3] = 0
         res = dict(poses=poses.detach().cpu().numpy(),
             shapes=shapes.detach().cpu().numpy(),
-            Rh=Rh.detach().cpu().numpy(),
-            Th=Tnew.detach().cpu().numpy()
+            global_orient=global_orient.detach().cpu().numpy(),
+            transl=Tnew.detach().cpu().numpy()
             )
         return res
     
@@ -308,7 +312,7 @@ class SMPLlayer(nn.Module):
         poses = self.extend_pose(poses)
         return poses.detach().cpu().numpy()
 
-    def forward(self, poses, shapes, Rh=None, Th=None, expression=None, 
+    def forward(self, body_pose,jaw_pose,leye_pose,reye_pose,right_hand_pose,left_hand_pose, shapes, global_orient=None, transl=None, expression=None, 
         v_template=None,
         return_verts=True, return_tensor=True, return_smpl_joints=False, 
         only_shape=False, pose2rot=True, **kwargs):
@@ -317,38 +321,70 @@ class SMPLlayer(nn.Module):
         Args:
             poses (n, 72)
             shapes (n, 10)
-            Rh (n, 3): global orientation
-            Th (n, 3): global translation
+            global_orient (n, 3): global orientation
+            transl (n, 3): global translation
             return_verts (bool, optional): if True return (6890, 3). Defaults to False.
         """
-        if 'torch' not in str(type(poses)):
+        if 'torch' not in str(type(body_pose)):
             dtype, device = self.dtype, self.device
-            poses = to_tensor(poses, dtype, device)
+            body_pose = to_tensor(body_pose, dtype, device)
             shapes = to_tensor(shapes, dtype, device)
-            if Rh is not None:
-                Rh = to_tensor(Rh, dtype, device)
-            if Th is not None:
-                Th = to_tensor(Th, dtype, device)
+            if jaw_pose is not None:
+                jaw_pose = to_tensor(jaw_pose, dtype, device)
+            if leye_pose is not None:
+                leye_pose = to_tensor(leye_pose, dtype, device)
+            if reye_pose is not None:
+                reye_pose = to_tensor(reye_pose, dtype, device)
+            if right_hand_pose is not None:
+                right_hand_pose = to_tensor(right_hand_pose, dtype, device)
+            if left_hand_pose is not None:
+                left_hand_pose = to_tensor(left_hand_pose, dtype, device)
+            if global_orient is not None:
+                global_orient = to_tensor(global_orient, dtype, device)
+            if transl is not None:
+                transl = to_tensor(transl, dtype, device)
             if expression is not None:
                 expression = to_tensor(expression, dtype, device)
 
-        bn = poses.shape[0]
-        # process Rh, Th
-        if Rh is None:
-            Rh = torch.zeros(bn, 3, device=poses.device)
-        if Th is None:
-            Th = torch.zeros(bn, 3, device=poses.device)
+        bn = body_pose.shape[0]
+        # process global_orient, transl
+        if global_orient is None:
+            global_orient = torch.zeros(bn, 3, device=poses.device)
+        if transl is None:
+            transl = torch.zeros(bn, 3, device=poses.device)
+        # process jaw_pose, leye_pose, reye_pose
+        if jaw_pose is None:
+            jaw_pose = torch.zeros(bn, 3, device=poses.device)
+        if leye_pose is None:
+            leye_pose = torch.zeros(bn, 3, device=poses.device)
+        if reye_pose is None:
+            reye_pose = torch.zeros(bn, 3, device=poses.device)
+        if right_hand_pose is None:
+            right_hand_pose = torch.zeros(bn, 15, 3, device=poses.device)
+        if left_hand_pose is None:
+            left_hand_pose = torch.zeros(bn, 15, 3, device=poses.device)
         
-        if len(Rh.shape) == 2: # angle-axis
-            rot = batch_rodrigues(Rh)
+        if len(global_orient.shape) == 2: # angle-axis
+            rot = batch_rodrigues(global_orient)
         else:
-            rot = Rh
-        transl = Th.unsqueeze(dim=1)
+            rot = global_orient
+        transl = transl.unsqueeze(dim=1)
         # process shapes
         if shapes.shape[0] < bn:
             shapes = shapes.expand(bn, -1)
         if expression is not None and self.model_type == 'smplx':
             shapes = torch.cat([shapes, expression], dim=1)
+        
+        # process poses
+        poses = torch.cat(
+            [body_pose.reshape(-1, 22, 3),
+             jaw_pose.reshape(-1, 1, 3),
+             leye_pose.reshape(-1, 1, 3),
+             reye_pose.reshape(-1, 1, 3),
+             left_hand_pose.reshape(-1, 15, 3),
+             right_hand_pose.reshape(-1, 15, 3)],
+            dim=1).reshape(-1, 165).to(self.device)
+
         # process poses
         if pose2rot: # if given rotation matrix, no need for this
             poses = self.extend_pose(poses)
@@ -378,24 +414,54 @@ class SMPLlayer(nn.Module):
         return vertices
     
     def init_params(self, nFrames=1, nShapes=1, ret_tensor=False):
+        identity_matrix = np.eye(3)
+        # params = {
+        #     'poses': np.zeros((nFrames, self.NUM_POSES)),
+        #     'shapes': np.zeros((nShapes, NUM_SHAPES)),
+        #     'global_orient': np.zeros((nFrames, 3)),
+        #     'transl': np.zeros((nFrames, 3)),
+        # }
+        NUM_BODYJOINTS = 22
+        NUM_HANDJOINTS = 15
         params = {
-            'poses': np.zeros((nFrames, self.NUM_POSES)),
+            'jaw_pose' : np.zeros((nFrames, 3)),
+            'leye_pose': np.zeros((nFrames, 3)),
+            'reye_pose': np.zeros((nFrames, 3)),
+            'body_pose': np.zeros((nFrames, NUM_BODYJOINTS, 3)),
+            'right_hand_pose': np.zeros((nFrames, NUM_HANDJOINTS, 3)),
+            'left_hand_pose': np.zeros((nFrames, NUM_HANDJOINTS, 3)),
             'shapes': np.zeros((nShapes, NUM_SHAPES)),
-            'Rh': np.zeros((nFrames, 3)),
-            'Th': np.zeros((nFrames, 3)),
+            'global_orient': np.repeat(identity_matrix[np.newaxis, :, :], nFrames, axis=0),
+            'transl': np.zeros((nFrames, 3)),
         }
+         
         if self.model_type == 'smplx':
             params['expression'] = np.zeros((nFrames, NUM_EXPR))
+
+        # if self.use_pre_trained and nShapes != 1:
+        #     if self.flame_params is not None:
+        #         params['jaw_pose'] = self.flame_params['jaw_pose']
+        #         params['leye_pose'] = self.flame_params['leye_pose']
+        #         params['reye_pose'] = self.flame_params['reye_pose']
+        #         params['expression'] = self.flame_params['expr']
+            
+        #     if self.mano_params is not None:
+        #         params['right_hand_pose'] = self.mano_params['right_hand_pose']
+        #         params['left_hand_pose'] = self.mano_params['left_hand_pose']
+
         if ret_tensor:
             for key in params.keys():
                 params[key] = to_tensor(params[key], self.dtype, self.device)
+        
+        for key in params.keys():
+            print(key, params[key].shape)
         return params
 
     def check_params(self, body_params):
         model_type = self.model_type
-        nFrames = body_params['poses'].shape[0]
-        if body_params['poses'].shape[1] != self.NUM_POSES:
-            body_params['poses'] = np.hstack((body_params['poses'], np.zeros((nFrames, self.NUM_POSES - body_params['poses'].shape[1]))))
+        nFrames = body_params['body_pose'].shape[0]
+        # if body_params['poses'].shape[1] != self.NUM_POSES:
+        #     body_params['poses'] = np.hstack((body_params['poses'], np.zeros((nFrames, self.NUM_POSES - body_params['poses'].shape[1]))))
         if model_type == 'smplx' and 'expression' not in body_params.keys():
             body_params['expression'] = np.zeros((nFrames, NUM_EXPR))
         return body_params
@@ -403,7 +469,7 @@ class SMPLlayer(nn.Module):
     @staticmethod    
     def merge_params(param_list, share_shape=True):
         output = {}
-        for key in ['poses', 'shapes', 'Rh', 'Th', 'expression']:
+        for key in ['jaw_pose','leye_pose','reye_pose','rhand_pose','lhand_pose','body_pose', 'shapes', 'global_orient', 'transl', 'expression']:
             if key in param_list[0].keys():
                 output[key] = np.vstack([v[key] for v in param_list])
         if share_shape:
@@ -418,7 +484,7 @@ class SMPLlayer(nn.Module):
     @staticmethod
     def select_nf(params_all, nf):
         output = {}
-        for key in ['poses', 'Rh', 'Th']:
+        for key in ['jaw_pose','leye_pose','reye_pose','rhand_pose','lhand_pose','body_pose', 'shapes', 'global_orient', 'transl', 'expression']:
             output[key] = params_all[key][nf:nf+1, :]
         if 'expression' in params_all.keys():
             output['expression'] = params_all['expression'][nf:nf+1, :]

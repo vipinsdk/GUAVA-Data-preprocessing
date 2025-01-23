@@ -9,6 +9,8 @@ import os
 from os.path import join
 from tqdm import tqdm
 import numpy as np
+from glob import glob
+import cv2 
 
 def load_subs(path, subs):
     if len(subs) == 0:
@@ -82,10 +84,41 @@ config = {
     },
 }
 
+mkdir = lambda x: os.makedirs(x, exist_ok=True)
+
+def extract_video(videoname, path, start, end, step):
+    base = os.path.basename(videoname).replace('.mp4', '')
+    if not os.path.exists(videoname):
+        return base
+    outpath = join(path, 'images', base)
+    if os.path.exists(outpath) and len(os.listdir(outpath)) > 0:
+        num_images = len(os.listdir(outpath))
+        print('>> exists {} frames'.format(num_images))
+        return base
+    else:
+        os.makedirs(outpath, exist_ok=True)
+    video = cv2.VideoCapture(videoname)
+    totalFrames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    for cnt in tqdm(range(totalFrames), desc='{:10s}'.format(os.path.basename(videoname))):
+        ret, frame = video.read()
+        if cnt < start:continue
+        if cnt >= end:break
+        if not ret:continue
+        if (cnt % step ==0):
+            cv2.imwrite(join(outpath, '{:06d}.jpg'.format(cnt)), frame)
+    video.release()
+    return base
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('path', type=str, default=None, help="the path of data")
+    parser.add_argument('--start', type=int, default=0,
+        help='frame start')
+    parser.add_argument('--end', type=int, default=10000,
+        help='frame end')    
+    parser.add_argument('--step', type=int, default=1,
+        help='frame step')
     parser.add_argument('--img_save', type=str, default=None, help="store rendered keypoints images")
     parser.add_argument('--subs', type=str, nargs='+', default=[], help="the path of data")
     # Output Control
@@ -115,8 +148,17 @@ if __name__ == "__main__":
     mode = args.mode
     if not os.path.exists(join(args.path, 'images')) and os.path.exists(join(args.path, 'videos')):
         # default extract image
-        cmd = f'''python3 apps/preprocess/extract_image.py {args.path}'''
-        os.system(cmd)
+        image_path = join(args.path, 'images')
+        os.makedirs(image_path, exist_ok=True)
+        subs_image = sorted(os.listdir(image_path))
+        subs_videos = sorted(glob(join(args.path,'videos','*.mp4')))
+        if len(subs_videos) > len(subs_image):
+            videos = sorted(glob(join(args.path,'videos','*.mp4')))
+            subs = []
+            for video in videos:
+                basename = extract_video(video, args.path, start=args.start, end=args.end, step=args.step)
+        # cmd = f'''python3 apps/preprocess/extract_image.py {args.path}'''
+        # os.system(cmd)
     subs = load_subs(args.path, args.subs)
     if len(args.gpus) != 0:
         # perform multiprocess by runcmd
@@ -149,7 +191,7 @@ if __name__ == "__main__":
         config[mode]['force'] = args.force
         image_root = join(args.path, 'images', sub)
         annot_root = join(args.path, args.annot, sub)
-        image_save = join(args.img_save, 'images', sub)
+        # image_save = join(args.img_save, 'images', sub)
         tmp_root = join(args.path, mode, sub)
         if os.path.exists(annot_root) and not args.force:
             # check the number of annots and images
@@ -184,7 +226,7 @@ if __name__ == "__main__":
         elif mode in ['mp-pose', 'mp-holistic', 'mp-handl', 'mp-handr', 'mp-face']:
             from easymocap.estimator.mediapipe_wrapper import extract_2d
             config[mode]['ext'] = args.ext
-            extract_2d(image_root, annot_root, image_save, config[mode], mode=mode.replace('mp-', ''))
+            extract_2d(image_root, annot_root, config[mode], mode=mode.replace('mp-', ''))
         if mode == 'feetcrop' or mode == 'openposecrop':
             from easymocap.estimator.openpose_wrapper import FeetEstimatorByCrop
             config[mode]['openpose'] = args.openpose

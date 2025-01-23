@@ -1,4 +1,4 @@
-# GUAVA Data Preprocessing Pipeline
+# Data Preprocessing Pipeline
 
 This repository contains scripts to preprocess data for GUAVA. The pipeline includes tasks like video trimming, camera calibration, background matting, and body segmentation.
 
@@ -9,15 +9,32 @@ To get started, create a Conda environment using the provided `environment.yml` 
 ```bash
 conda env create -f environment.yml
 conda activate guava
+
+cd hamer
+export CUDA_HOME=$CONDA_PREFIX
+pip install -e .[all]
+pip install -v -e third-party/ViTPose
+
+cd ..
+cd Easymocap
+python setup.py develop
 ```
 
 Ensure all necessary dependencies are installed by checking the `environment.yml` file for any additional package requirements.
 
 ## Tasks Overview
+### Synchronization of video sequences
+This step lets the user to sync all the video sequences to start or end at the same time. The user can forward specific sets of frames for all videos or a single video at once using the GUI and controls for it. 
+
+```command
+cd sync_streams
+
+python3 multiview_sync.py --video_dir D:/Datacapture/Extrinsics_1/videos
+```
 
 ### 1. Trim Videos
-
 The `trim` option processes and trims synchronized video streams based on the start and end sequences for each video.
+
 ---
 
 ### 2. Camera Calibration
@@ -39,10 +56,13 @@ The `sapiens` option runs body segmentation using the Sapiens model.
 
 - **Additional Documentation**: See the [Body Segmentation](sapiens/lite/docs/SEG_README.md).
 
+### 5. Mediapipe landmark detection
+The easymocap contains a wrapper to detect the Mediapipe whole body 2D keypoints detection. 
+
 
 ### Example Usage
 ```command
-python main.py --root_dir /home/vippin/thesis/extra --output /home/vippin/thesis/extra/demo_guava --sapiens --calibrate --background_matting
+python main.py --root_dir /home/vippin/thesis/extra --output /home/vippin/thesis/extra/demo_guava --sapiens --calibrate --background_matting --annots
 ```
 ## Logging
 
@@ -79,7 +99,7 @@ Please consider citing these works if you find this repo is useful for your proj
   year={2024}
 }
 ```
-- Camera Calibration
+- Easymocap
 ```bibtex
 @Misc{easymocap,  
     title = {EasyMoCap - Make human motion capture easier.},
@@ -87,3 +107,23 @@ Please consider citing these works if you find this repo is useful for your proj
     year = {2021},
     url = {https://github.com/zju3dv/EasyMocap}
 }
+```
+- Metrical Tracker
+```bibtex
+@proceedings{MICA:ECCV2022,
+  author = {Zielonka, Wojciech and Bolkart, Timo and Thies, Justus},
+  title = {Towards Metrical Reconstruction of Human Faces},
+  journal = {European Conference on Computer Vision},
+  year = {2022}
+}
+```
+
+- HaMeR
+```bibtex
+@inproceedings{pavlakos2024reconstructing,
+    title={Reconstructing Hands in 3{D} with Transformers},
+    author={Pavlakos, Georgios and Shan, Dandan and Radosavovic, Ilija and Kanazawa, Angjoo and Fouhey, David and Malik, Jitendra},
+    booktitle={CVPR},
+    year={2024}
+}
+```

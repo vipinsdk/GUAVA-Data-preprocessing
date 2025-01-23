@@ -300,8 +300,8 @@ class SMPLModel(Model):
         params = {
             'poses': np.zeros((nFrames, self.NUM_POSES)),
             'shapes': np.zeros((nShapes, self.NUM_SHAPES)),
-            'Rh': np.zeros((nFrames, 3)),
-            'Th': np.zeros((nFrames, 3)),
+            'global_orient': np.eye(nFrames, 3),
+            'transl': np.zeros((nFrames, 3)),
         }
         if add_scale:
             params['scale'] = np.ones((1, 1))
@@ -315,6 +315,7 @@ class SMPLModel(Model):
 
     def check_params(self, body_params):
         # 预先拷贝一下，不要修改到原始数据了
+        print(body_params)
         body_params = body_params.copy()
         poses = body_params['poses']
         nFrames = poses.shape[0]

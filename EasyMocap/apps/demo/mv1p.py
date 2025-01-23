@@ -13,6 +13,8 @@ import os
 import trimesh
 from os.path import join
 import numpy as np
+import torch
+from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_euler_angles
 
 def check_repro_error(keypoints3d, kpts_repro, keypoints2d, P, MAX_REPRO_ERROR):
     square_diff = (keypoints2d[:, :, :2] - kpts_repro[:, :, :2])**2 
@@ -24,6 +26,33 @@ def check_repro_error(keypoints3d, kpts_repro, keypoints2d, P, MAX_REPRO_ERROR):
         keypoints2d[vv, jj, -1] = 0.
         keypoints3d, kpts_repro = simple_recon_person(keypoints2d, P)
     return keypoints3d, kpts_repro
+
+def read_flame_param(flame_param_path, nf):
+    flame_param_path = os.path.join(flame_param_path, '{:05d}.npz'.format(nf))
+    flame_params = dict(np.load(flame_param_path))
+    for key in flame_params.keys():
+        flame_params[key] = torch.from_numpy(flame_params[key])
+
+    flame_params['jaw_pose'] = matrix_to_euler_angles(rotation_6d_to_matrix(flame_params['jaw_pose']), convention='XYZ')
+    flame_params['reye_pose'] = matrix_to_euler_angles(rotation_6d_to_matrix(flame_params['eyes_pose'][:,:6]), convention='XYZ')
+    flame_params['leye_pose'] = matrix_to_euler_angles(rotation_6d_to_matrix(flame_params['eyes_pose'][:,6:]), convention='XYZ')
+    return flame_params
+
+def read_mano_param(mano_param_path, nf):
+    mano_params = {}
+    rmano_param_path = os.path.join(mano_param_path, '8_{:06d}_1.npz'.format(nf))
+    lmano_param_path = os.path.join(mano_param_path, '8_{:06d}_0.npz'.format(nf))
+    rmano_params = dict(np.load(rmano_param_path))
+    lmano_params = dict(np.load(lmano_param_path))
+    for key in rmano_params.keys():
+        rmano_params[key] = torch.from_numpy(rmano_params[key])
+    
+    for key in lmano_params.keys():
+        lmano_params[key] = torch.from_numpy(lmano_params[key])
+    
+    mano_params['right_hand_pose'] = matrix_to_euler_angles(rmano_params['hand_pose'], convention='XYZ').unsqueeze(0)
+    mano_params['left_hand_pose'] = matrix_to_euler_angles(lmano_params['hand_pose'], convention='XYZ').unsqueeze(0)
+    return mano_params
 
 def mv1pmf_skel(dataset, check_repro=True, args=None):
     MIN_CONF_THRES = args.thres2d
@@ -56,8 +85,24 @@ def mv1pmf_smpl(dataset, args, weight_pose=None, weight_shape=None):
     kp3ds = []
     start, end = args.start, min(args.end, len(dataset))
     keypoints2d, bboxes = [], []
+    flame_params, mano_params = {}, {}
     dataset.no_img = True
     for nf in tqdm(range(start, end), desc='loading'):
+        # check for flame and mano params
+        # if args.flame_path is not None:
+        #     for key, value in read_flame_param(args.flame_path, nf).items():
+        #         if key not in flame_params.keys():
+        #             flame_params[key] = value
+        #         else:
+        #             flame_params[key] = torch.vstack((flame_params[key],value))
+        
+        # if args.mano_path is not None:
+        #     for key, value  in read_mano_param(args.mano_path, nf).items():
+        #         if key not in mano_params.keys():
+        #             mano_params[key] = value
+        #         else:
+        #             mano_params[key] = torch.vstack((mano_params[key], value))
+
         images, annots = dataset[nf]
         keypoints2d.append(annots['keypoints'])
         bboxes.append(annots['bbox'])
@@ -76,6 +121,30 @@ def mv1pmf_smpl(dataset, args, weight_pose=None, weight_shape=None):
     for nf in tqdm(range(start, end), desc='render'):
         images, annots = dataset[nf]
         param = select_nf(params, nf-start)
+
+        if args.flame_path is not None:
+            flame_param_path = os.path.join(args.flame_path, '{:05d}.npz'.format(nf))
+            flame_param = dict(np.load(flame_param_path))
+            for key in flame_param.keys():
+                flame_param[key] = torch.from_numpy(flame_param[key])
+
+            rmano_param_path = os.path.join(args.mano_path, '8_{:06d}_1.npz'.format(nf))
+            lmano_param_path = os.path.join(args.mano_path, '8_{:06d}_0.npz'.format(nf))
+            rmano_params = dict(np.load(rmano_param_path))
+            lmano_params = dict(np.load(lmano_param_path))
+            for key in rmano_params.keys():
+                rmano_params[key] = torch.from_numpy(rmano_params[key])
+
+            for key in lmano_params.keys():
+                lmano_params[key] = torch.from_numpy(lmano_params[key])
+
+            param['jaw_pose'] = matrix_to_euler_angles(rotation_6d_to_matrix(flame_param['jaw_pose']), convention='XYZ')
+            param['reye_pose'] = matrix_to_euler_angles(rotation_6d_to_matrix(flame_param['eyes_pose'][:,:6]), convention='XYZ')
+            param['leye_pose'] = matrix_to_euler_angles(rotation_6d_to_matrix(flame_param['eyes_pose'][:,6:]), convention='XYZ')
+            param['expression'] = flame_param['expr']
+            param['right_hand_pose'] = matrix_to_euler_angles(rmano_params['hand_pose'], convention='XYZ').unsqueeze(0)
+            # param['left_hand_pose'] = matrix_to_euler_angles(rmano_params['hand_pose'], convention='XYZ').unsqueeze(0)
+        
         dataset.write_smpl(param, nf)
         if args.write_smpl_full:
             param_full = param.copy()
@@ -84,10 +153,10 @@ def mv1pmf_smpl(dataset, args, weight_pose=None, weight_shape=None):
         if args.write_vertices:
             vertices = body_model(return_verts=True, return_tensor=False, **param)
             write_data = [{'id': 0, 'vertices': vertices[0]}]
-            # mesh_folder = join(args.out, 'mesh')
-            dataset.write_vertices(write_data, nf)
-            # os.mkdir(mesh_folder, exist_ok=True)
-            # trimesh.Trimesh(faces=body_model.faces, vertices=vertices[0], process=False).export(f'{mesh_folder}/{nf}.obj')
+            mesh_folder = join(args.out, 'mesh')
+            # dataset.write_vertices(write_data, nf)
+            os.makedirs(mesh_folder, exist_ok=True)
+            trimesh.Trimesh(faces=body_model.faces, vertices=vertices[0], process=False).export(f'{mesh_folder}/{nf}.obj')
         if args.vis_smpl: 
             vertices = body_model(return_verts=True, return_tensor=False, **param)
             if args.mesh_root is None:
@@ -118,6 +187,8 @@ if __name__ == "__main__":
     parser = load_parser()
     parser.add_argument('--skel', action='store_true')
     parser.add_argument('--mesh_root', type=str, default=None)
+    parser.add_argument('--flame_path', type=str, default=None)
+    parser.add_argument('--mano_path', type=str, default=None)
     args = parse_parser(parser)
     help="""
   Demo code for multiple views and one person:

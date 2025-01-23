@@ -38,7 +38,8 @@ def load_weight_pose(model, opts):
             'reg_poses_zero': 1e-2,
             'smooth_body': 5e-1, 'smooth_poses': 1e-1, 'smooth_hand': 1e-3,
             'reg_hand': 1e-4, 'reg_expr': 1e-2, 'reg_head': 1e-2,
-            'k2d': 1e-4
+            'k2d': 1e-4 
+            #'init_poses': 1e-3
         }
     elif model == 'mano':
         weight = {

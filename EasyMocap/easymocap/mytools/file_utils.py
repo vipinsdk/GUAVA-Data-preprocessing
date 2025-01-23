@@ -143,7 +143,9 @@ def array2raw(array, separator=' ', fmt='%.3f'):
     
     
 def myarray2string(array, separator=', ', fmt='%7.7f', indent=8):
-    assert len(array.shape) == 2, 'Only support MxN matrix, {}'.format(array.shape)
+    # assert len(array.shape) == 2, 'Only support MxN matrix, {}'.format(array.shape)
+    if len(array.shape) == 3:
+        array = array.squeeze(0)
     blank = ' ' * indent
     res = ['[']
     for i in range(array.shape[0]):
@@ -196,7 +198,7 @@ def write_vertices(dumpname, results):
     write_common_results(dumpname, results, keys, fmt='%6.5f')
 
 def write_smpl(dumpname, results):
-    keys = ['Rh', 'Th', 'poses', 'handl', 'handr', 'expression', 'shapes']
+    keys = ['Rh', 'Th', 'poses', 'handl', 'handr', 'expression', 'shapes', 'transl','global_orient', 'jaw_pose', 'leye_pose', 'reye_pose', 'left_hand_pose', 'right_hand_pose', 'body_pose']
     write_common_results(dumpname, results, keys)
 
 def batch_bbox_from_pose(keypoints2d, height, width, rate=0.1):

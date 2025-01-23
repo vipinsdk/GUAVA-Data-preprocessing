@@ -123,7 +123,17 @@ def main(args):
         assert os.path.exists(source), f"Input directory {source} does not exist."
         output_folder = os.path.join(args.output, 'BodySegmentation')
         model_path = args.sapiens_lite_ckpt
-        body_segmentation(source, output_folder, model_path)  
+        body_segmentation(source, output_folder, model_path)
+
+    if args.annots:
+        logging.info("Generating annotations using Mediapipe")
+        os.chdir('EasyMocap')
+        annots_command = f"python3 apps/preprocess/extract_keypoints.py {args.root_dir} --mode {args.mode}"
+        run_command(annots_command)
+        os.chdir('..')
+    
+    if args.flame_params:
+        logging.info("Generating FLAME parameters")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data preprocessing for GUAVA')
@@ -138,6 +148,9 @@ if __name__ == "__main__":
     parser.add_argument('--background_matting', action='store_true', help="Run background matting")
     parser.add_argument('--sapiens', action='store_true', help="Run Sapiens")
     parser.add_argument('--sapiens_lite_ckpt', type=str, default='', help="Path to the Sapiens Lite checkpoint")
-
+    parser.add_argument('--annots', action='store_true', help="To generate annotations (mediapipe)")
+    parser.add_argument('--mode', type=str, default='mp-holistic', help="Mode for generating annotations")
+    parser.add_argument('--flame_params', action='store_true', help="To generate flame parameters")
+    parser.add_argument('--mano_params', action='store_true', help="To generate mano parameters")
     args = parser.parse_args()
     main(args)
