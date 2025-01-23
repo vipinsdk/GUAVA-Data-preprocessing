@@ -1,4 +1,4 @@
-name: guava-1
+name: guava
 channels:
   - pytorch
   - pytorch3d
