@@ -1,0 +1,8 @@
+# Tracker config
+
+actor: '/netscratch/jeetmal/videos/six_cam/vippin'
+save_folder: '/netscratch/jeetmal/output/metrical-tracker/six_cam/test/'
+optimize_shape: true
+optimize_jaw: true
+begin_frames: 3
+keyframes: [ 5, 6 ]
