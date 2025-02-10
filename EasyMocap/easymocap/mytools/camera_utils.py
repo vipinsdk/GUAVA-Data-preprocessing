@@ -91,12 +91,13 @@ def write_intri(intri_name, cameras):
         intri.write('K_{}'.format(key), K)
         intri.write('dist_{}'.format(key), dist.flatten()[None])
 
-def write_extri(extri_name, cameras):
+def write_extri(extri_name, cameras, image_id):
     if not os.path.exists(os.path.dirname(extri_name)):
         os.makedirs(os.path.dirname(extri_name))
     extri = FileStorage(extri_name, True)
     results = {}
     camnames = list(cameras.keys())
+    extri.write('image_id', image_id, dt='int')  # New field for image_id
     extri.write('names', camnames, 'list')
     for key_, val in cameras.items():
         key = key_.split('.')[0]

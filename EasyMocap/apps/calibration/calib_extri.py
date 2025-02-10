@@ -11,8 +11,11 @@ from glob import glob
 from os.path import join
 import numpy as np
 import cv2
+from tqdm import trange, tqdm
 from easymocap.mytools import read_intri, write_extri, read_json
 from easymocap.mytools.debug_utils import mywarn
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 def init_intri(path, image):
     camnames = sorted(os.listdir(join(path, image)))
@@ -88,6 +91,7 @@ def calib_extri(path, image, intriname, image_id):
             for cam in camnames:
                 intri[cam] = intri[key0].copy()
     extri = {}
+    err_cam = {}
     # methods = [cv2.SOLVEPNP_ITERATIVE, cv2.SOLVEPNP_P3P, cv2.SOLVEPNP_AP3P, cv2.SOLVEPNP_EPNP, cv2.SOLVEPNP_DLS, cv2.SOLVEPNP_IPPE, cv2.SOLVEPNP_SQPNP]
     methods = [cv2.SOLVEPNP_ITERATIVE]
     for ic, cam in enumerate(camnames):
@@ -149,9 +153,72 @@ def calib_extri(path, image, intriname, image_id):
         extri[cam]['R'] = cv2.Rodrigues(rvec)[0]
         extri[cam]['T'] = tvec
         center = - extri[cam]['R'].T @ tvec
+        err_cam[cam] = err
         print('{} center => {}, err = {:.3f}'.format(cam, center.squeeze(), err))
+
+    return {
+        'intri': intri,
+        'extri': extri,
+        'err_cam': err_cam,
+        'global_err': max(list(err_cam.values())) if len(err_cam) > 0 else 1e6,
+        'image_id': image_id
+    }
+
+
+def process_image(image_id, path, image, intriname, camnames):
+    result = calib_extri(path, image, intriname=intriname, image_id=image_id)
+    all_cams_exist = all(cam in result['extri'] for cam in camnames)
+    return result if all_cams_exist else None
+
+
+def calibrate_extrincis(path, image, intriname):    
+    camnames = sorted(os.listdir(join(path, image)))
+    camnames = [c for c in camnames if os.path.isdir(join(path, image, c))]
+    n_images = min([len(glob(join(path, image, cam, '*.jpg'))) for cam in camnames])
+
+    calib_params = []
+
+    with ThreadPoolExecutor() as executor:
+        futures = {
+            executor.submit(process_image, i, path, image, intriname, camnames): i
+            for i in range(n_images)
+        }
+
+        for future in tqdm(as_completed(futures), total=n_images):
+            result = future.result()
+            if result is not None:
+                calib_params.append(result)
+
+    if not calib_params:
+        print("No valid calibration parameters found.")
+        return
+
+    # for i in trange(0, n_images):
+    #     result = calib_extri(path, image, intriname=intriname, image_id=i)
+    #     all_cams_exist = True
+    #     for cam in camnames:
+    #         if cam not in result['extri']:
+    #             all_cams_exist = False
+    #             break
+        
+    #     if all_cams_exist:
+    #         calib_params.append(result)
+
+    min_error = np.argsort([x['global_err'] for x in calib_params])
+    best_params = calib_params[min_error[0]]
+    
+    image_id = best_params['image_id']
+    intri = best_params['intri']
+    extri = best_params['extri']
     write_intri(join(path, 'intri.yml'), intri)
-    write_extri(join(path, 'extri.yml'), extri)
+    write_extri(join(path, 'extri.yml'), extri, image_id)
+    
+    print('Best image:', image_id)
+
+    print('Best error:', best_params['global_err'])
+    print('Average error:', np.mean([x['global_err'] for x in calib_params]))
+    print('Worst error:', np.max([x['global_err'] for x in calib_params]))
+
 
 if __name__ == "__main__":
     import argparse
@@ -167,4 +234,4 @@ if __name__ == "__main__":
     parser.add_argument('--image_id', type=int, default=0, help='Image id used for extrinsic calibration')
 
     args = parser.parse_args()
-    calib_extri(args.path, args.image, intriname=args.intri, image_id=args.image_id)
+    calibrate_extrincis(args.path, args.image, intriname=args.intri)

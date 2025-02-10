@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Input and output files
-input_dir="/netscratch/millerdurai/Datacapture/19_12_2024/Intrinsics/videos"
-output_dir="/netscratch/millerdurai/Datacapture/19_12_2024/Intrinsics/videos"
+input_dir="/home/vippin/thesis/extra/capture_07_02_2025"
+output_dir="/home/vippin/thesis/extra/capture_07_02_2025"
 
 
-ORIENTATION="-90" # 05, 04, 03, 02, 01
-
+# ORIENTATION="-90" # 05, 04, 03, 02, 01
+ORIENTATIONS=("90" "90" "90" "-90" "-90" "-90" "-90" "-90" "-90" "-90" "-90" "-90" "0")
 # Get frame rate and orientation
 frame_rate=29.97002997
 # orientation=$(ffprobe -v error -show_entries stream=side_data_list,rotation -of json $input | grep -o '"rotation": *[-0-9]*' | grep -o '[-0-9]*')
@@ -14,11 +14,14 @@ frame_rate=29.97002997
 
 
 for input in "$input_dir"/*.MOV; do
+
     # Get the base name of the file (without directory and extension)
     base_name=$(basename "$input" .MOV)
     
     # Set the output file path
     output="$output_dir/$base_name.mp4"
+        
+    ORIENTATION="${ORIENTATIONS[$orientation_index]}"
 
     # Decide transpose filter based on orientation
     transpose_filter=""
@@ -32,8 +35,16 @@ for input in "$input_dir"/*.MOV; do
 
     # Apply ffmpeg transformation
     if [ -n "$transpose_filter" ]; then
-        ffmpeg -i $input -vf "$transpose_filter" -r $frame_rate -c:v libx264 -preset fast -crf 18 -c:a aac -y $output
+        ffmpeg -i $input -vf "$transpose_filter" -r $frame_rate -c:v libx264 -preset veryfast -crf 18 -c:a aac -y $output
     else
-        ffmpeg -i $input -r $frame_rate -c:v libx264 -preset fast -crf 18 -c:a aac -y $output
+        ffmpeg -i $input -r $frame_rate -c:v libx264 -preset veryfast -crf 18 -c:a aac -y $output
+    fi
+
+     # Increment orientation_index for the next file
+    orientation_index=$((orientation_index + 1))
+
+    # If the index exceeds the array length, reset to 0 (optional behavior)
+    if [ "$orientation_index" -ge "${#ORIENTATIONS[@]}" ]; then
+        orientation_index=0
     fi
 done
