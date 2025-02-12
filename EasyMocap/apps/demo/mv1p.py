@@ -18,8 +18,8 @@ import torchvision
 from PIL import Image
 import torchvision.transforms.functional as F_t
 import torchvision.transforms as T
-# from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_euler_angles
-# from pytorch3d.utils import cameras_from_opencv_projection
+from pytorch3d.transforms import rotation_6d_to_matrix, matrix_to_euler_angles
+from pytorch3d.utils import cameras_from_opencv_projection
 
 
 def get_mask_tilted_line(verts, h=1920, w=1080): 
@@ -209,7 +209,7 @@ def mv1pmf_smpl(dataset, args, weight_pose=None, weight_shape=None):
 
     np.savez(join(args.out, 'params.npz'), **{'params': params_out})
 
-def write_canonical_flame_param(params, tgt_folder):
+def write_canonical_smplx_param(params, tgt_folder):
     smplx_param = {
         'transl': np.zeros_like(params['transl'][:1]),
         'global_orient': np.zeros_like(params['global_orient'][:1]),
@@ -229,7 +229,7 @@ def write_canonical_flame_param(params, tgt_folder):
 
 def mv1pmf_output(dataset, args):
     params = np.load(join(args.out, 'params.npz'), allow_pickle=True)['params']
-    write_canonical_flame_param(params, args.out)
+    write_canonical_smplx_param(params, args.out)
 
     # for nf, item in tqdm(enumerate(params), total=len(params), desc='smplx_params'):
     #     # item['transl'] = (M[:3, 3] + item['transl']).numpy()
@@ -267,6 +267,6 @@ if __name__ == "__main__":
 
     if args.skel or not os.path.exists(skel_path):
          mv1pmf_skel(dataset, check_repro=True, args=args)
-    # mv1pmf_smpl(dataset, args)
-    mv1pmf_output(dataset, args)
+    mv1pmf_smpl(dataset, args)
+    # mv1pmf_output(dataset, args)
     
