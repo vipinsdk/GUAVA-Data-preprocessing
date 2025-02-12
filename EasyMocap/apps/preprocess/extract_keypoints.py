@@ -68,7 +68,8 @@ config = {
         'model_complexity': 2,
         # 'refine_face_landmarks': True,
         'min_detection_confidence':0.5,
-        'min_tracking_confidence': 0.5
+        'min_tracking_confidence': 0.5,
+        'ext': '.png'
     },
     'mp-handl':{
         'model_complexity': 1,
@@ -146,17 +147,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config['yolo']['isWild'] = args.wild
     mode = args.mode
-    if not os.path.exists(join(args.path, 'images')) and os.path.exists(join(args.path, 'videos')):
-        # default extract image
-        image_path = join(args.path, 'images')
-        os.makedirs(image_path, exist_ok=True)
-        subs_image = sorted(os.listdir(image_path))
-        subs_videos = sorted(glob(join(args.path,'videos','*.mp4')))
-        if len(subs_videos) > len(subs_image):
-            videos = sorted(glob(join(args.path,'videos','*.mp4')))
-            subs = []
-            for video in videos:
-                basename = extract_video(video, args.path, start=args.start, end=args.end, step=args.step)
+    # if not os.path.exists(join(args.path, 'images')) and os.path.exists(join(args.path, 'videos')):
+    #     # default extract image
+    #     image_path = join(args.path, 'images')
+    #     os.makedirs(image_path, exist_ok=True)
+    #     subs_image = sorted(os.listdir(image_path))
+    #     subs_videos = sorted(glob(join(args.path,'videos','*.mp4')))
+    #     if len(subs_videos) > len(subs_image):
+    #         videos = sorted(glob(join(args.path,'videos','*.mp4')))
+    #         subs = []
+    #         for video in videos:
+    #             basename = extract_video(video, args.path, start=args.start, end=args.end, step=args.step)
         # cmd = f'''python3 apps/preprocess/extract_image.py {args.path}'''
         # os.system(cmd)
     subs = load_subs(args.path, args.subs)

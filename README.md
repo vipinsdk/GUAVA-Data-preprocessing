@@ -7,6 +7,8 @@ This repository contains scripts to preprocess data for GUAVA. The pipeline incl
 To get started, create a Conda environment using the provided `environment.yml` file:
 
 ```bash
+chmod +x scripts/install_conda.sh && scripts/install_conda.sh
+apt-get install git -y
 conda env create -f environment.yml
 conda activate guava
 export CUDA_HOME=$CONDA_PREFIX

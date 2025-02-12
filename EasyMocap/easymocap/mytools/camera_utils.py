@@ -97,8 +97,8 @@ def write_extri(extri_name, cameras, image_id):
     extri = FileStorage(extri_name, True)
     results = {}
     camnames = list(cameras.keys())
-    extri.write('image_id', image_id, dt='int')  # New field for image_id
     extri.write('names', camnames, 'list')
+    extri.write('image_id', image_id, dt='int')  # New field for image_id
     for key_, val in cameras.items():
         key = key_.split('.')[0]
         extri.write('R_{}'.format(key), val['Rvec'])

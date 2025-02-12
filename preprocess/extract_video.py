@@ -33,7 +33,7 @@ def video2frames(video_path: Path, image_dir: Path, keep_video_name: bool=False,
     .filter('fps', fps=f'{target_fps}')
     .filter('scale', width=w, height=h)
     .output(
-        str(image_dir / f'{file_path_stem}%06d.jpg'),
+        str(image_dir / f'{file_path_stem}%05d.jpg'),
         start_number=0,
         qscale=1,  # lower values mean higher quality (1 is the best, 31 is the worst).
     )

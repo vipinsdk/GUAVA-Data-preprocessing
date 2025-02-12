@@ -64,11 +64,11 @@ def calibrate_cameras(args):
     os.chdir('..')
 
 def background_mask(input_path, output_path):
-    if os.path.exists(output_path) and os.listdir(os.path.join(output_path, 'images')):
-        logging.info(f"Output folder {output_path} already exists.")
-    else:
-        os.makedirs(output_path, exist_ok=True)
-        background_matting(input_path, output_path)
+    # if os.path.exists(output_path) and os.listdir(os.path.join(output_path, 'images')):
+    #     logging.info(f"Output folder {output_path} already exists.")
+    # else:
+        # os.makedirs(output_path, exist_ok=True)
+    background_matting(input_path, output_path)
     
 
 def body_segmentation(input_path, output_path, model_path):
@@ -128,7 +128,8 @@ def main(args):
     if args.annots:
         logging.info("Generating annotations using Mediapipe")
         os.chdir('EasyMocap')
-        annots_command = f"python3 apps/preprocess/extract_keypoints.py {args.root_dir} --mode {args.mode}"
+        images = os.path.join(args.root_dir, 'videos')
+        annots_command = f"python3 apps/preprocess/extract_keypoints.py {images} --mode {args.mode}"
         run_command(annots_command)
         os.chdir('..')
     

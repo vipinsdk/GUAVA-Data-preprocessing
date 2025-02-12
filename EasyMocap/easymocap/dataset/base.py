@@ -11,6 +11,9 @@ from glob import glob
 import cv2
 import os, sys
 import numpy as np
+from pathlib import Path
+import math, json
+import tqdm
 
 from ..mytools.camera_utils import read_camera, get_fundamental_matrix, Undistort
 from ..mytools import FileWriter, read_annot, getFileList, save_json
@@ -376,8 +379,9 @@ class MVBase:
     def __init__(self, root, cams=[], out=None, config={}, 
         image_root='images', annot_root='annots', 
         kpts_type='body15',
-        undis=True, no_img=False, filter2d=None) -> None:
+        undis=True, no_img=False, filter2d=None, mano_path=None) -> None:
         self.root = root
+        self.manopath = mano_path
         self.image_root = join(root, image_root)
         self.annot_root = join(root, annot_root)
         self.kpts_type = kpts_type
@@ -481,6 +485,14 @@ class MVBase:
                 assert os.path.exists(annname), annname
                 assert self.imagelist[cam][index].split('.')[0] == self.annotlist[cam][index].split('.')[0]
                 annot = read_annot(annname, self.kpts_type)
+                if self.manopath is not None:
+                    manopath = self.manopath + '/' + f'{cam}_{index:06d}.npz'
+                    mano_param = np.load(manopath, allow_pickle=True)
+                    righthand = mano_param['righthand'].tolist()
+                    lefthand = mano_param['lefthand'].tolist()
+                    lefthand['pred_keypoints_2d'][:, 0] = 1080 - lefthand['pred_keypoints_2d'][:,0]
+                    annot[0]['keypoints'][25:25+21, :2] = lefthand['pred_keypoints_2d']
+                    annot[0]['keypoints'][46:46+21, :2] = righthand['pred_keypoints_2d']
             else:
                 annot = []
             if not self.no_img:
@@ -502,6 +514,10 @@ class MVBase:
         if self.undis:
             images = self.undistort(images)
             annots = self.undis_det(annots)
+        
+        if self.manopath is not None:
+            # add code
+            pass
         return images, annots
     
     def __len__(self) -> int:
@@ -635,3 +651,139 @@ class MVBase:
                 data[key] = np.array(data[key])
             outputs.append(data)
         return outputs
+    
+    def write(self):
+        self.tgt_folder = Path(self.out)
+        db = {
+            "frames": [],
+        }
+        
+        timestep_indices = set()
+        camera_indices = set()
+        numFrames = self.__len__()
+        for nf in tqdm.tqdm(range(numFrames), desc='writing database', total=numFrames):
+            image, _ = self.__getitem__(nf)
+            for camera_index, camera_id in enumerate(self.cams):
+                camera = self.cameras[camera_id]
+                item = {
+                    'timestep_index': nf,
+                    'timestep_index_original': nf,
+                    'timestep_id': f'{nf:06d}',
+                    'camera_index': camera_index,
+                    'camera_id': camera_id,
+                    'image': image[camera_index],
+                }
+                timestep_indices.add(nf)
+                camera_indices.add(camera_index)
+                extrinsic = camera['RT']
+                extrinsic = np.concatenate([extrinsic, np.array([[0, 0, 0, 1]])], axis=0)
+                intrinsic = camera['K'].astype(np.float64)
+
+                cx = intrinsic[0, 2]
+                cy = intrinsic[1, 2]
+                fl_x = intrinsic[0, 0]
+                fl_y = intrinsic[1, 1]
+                h = item['image'].shape[0]
+                w = item['image'].shape[1]
+                angle_x = math.atan(w / (fl_x * 2)) * 2
+                angle_y = math.atan(h / (fl_y * 2)) * 2
+
+                frame_item = {
+                    "timestep_index": item['timestep_index'],
+                    "timestep_index_original": item['timestep_index_original'],
+                    "timestep_id": item['timestep_id'],
+                    "camera_index": item['camera_index'],
+                    "camera_id": item['camera_id'],
+
+                    "cx": cx,
+                    "cy": cy,
+                    "fl_x": fl_x,
+                    "fl_y": fl_y,
+                    "h": h,
+                    "w": w,
+                    "camera_angle_x": angle_x,
+                    "camera_angle_y": angle_y,
+                    
+                    "transform_matrix": extrinsic.tolist(),
+                    "smplx_param_path" : f"smplx_params/{item['timestep_index']:05d}.npz",
+                    "file_path": f"images/{item['timestep_index']:05d}_{item['camera_index']:02d}.png",
+                    "fg_mask_path" : f"fg_masks/{item['timestep_index']:05d}_{item['camera_index']:02d}.png"
+                }
+
+                db['frames'].append(frame_item)
+                # worker_args.append([path2data])
+                # write_data(path2data)
+
+        # add indices to ease filtering
+        db['timestep_indices'] = sorted(list(timestep_indices))
+        db['camera_indices'] = sorted(list(camera_indices))
+        
+        write_json(db, self.tgt_folder)
+        write_json(db, self.tgt_folder, division='backup')
+        split_json(self.tgt_folder)
+
+def write_json(db, tgt_folder, division=None):
+    fname = "transforms.json" if division is None else f"transforms_{division}.json"
+    json_path = tgt_folder / fname
+    print(f"Writing database: {json_path}")
+    with open(json_path, "w") as f:
+        json.dump(db, f, indent=4)
+
+def split_json(tgt_folder: Path, train_ratio=0.7):
+    db = json.load(open(tgt_folder / "transforms.json", "r"))
+    
+    # init db for each division
+    db_train = {k: v for k, v in db.items() if k not in ['frames', 'timestep_indices', 'camera_indices']}
+    db_train['frames'] = []
+    db_val = {'frames' : []}
+    db_test = {'frames' : []}
+    # divide timesteps
+    nt = len(db['timestep_indices'])
+    assert 0 < train_ratio <= 1
+    nt_train = int(np.ceil(nt * train_ratio))
+    nt_test = nt - nt_train
+
+    # record number of timesteps
+    timestep_indices = sorted(db['timestep_indices'])
+    db_train['timestep_indices'] = timestep_indices[:nt_train]
+    db_val['timestep_indices'] = timestep_indices[:nt_train]  # validation set share the same timesteps with training set
+    db_test['timestep_indices'] = timestep_indices[nt_train:]
+
+    if len(db['camera_indices']) > 1:
+        # when having multiple cameras, leave one camera for validation (novel-view sythesis)
+        if 8 in db['camera_indices']:
+            # use camera 8 for validation (front-view of the NeRSemble dataset)
+            db_train['camera_indices'] = [i for i in db['camera_indices'] if i != 8]
+            db_val['camera_indices'] = [8]
+            db_test['camera_indices'] = db['camera_indices']
+        else:
+            # use the last camera for validation
+            db_train['camera_indices'] = db['camera_indices'][:-1]
+            db_val['camera_indices'] = [db['camera_indices'][-1]]
+            db_test['camera_indices'] = db['camera_indices']
+    else:
+        # when only having one camera, we create an empty validation set
+        db_train['camera_indices'] = db['camera_indices']
+        db_val['camera_indices'] = []
+        db_test['camera_indices'] = db['camera_indices']
+
+    # fill data by timestep index
+    range_train = range(db_train['timestep_indices'][0], db_train['timestep_indices'][-1]+1) if nt_train > 0 else []
+    range_test = range(db_test['timestep_indices'][0], db_test['timestep_indices'][-1]+1) if nt_test > 0 else []
+    for f in db['frames']:
+        if f['timestep_index'] in range_train:
+            if f['camera_index'] in db_train['camera_indices']:
+                db_train['frames'].append(f)
+            elif f['camera_index'] in db_val['camera_indices']:
+                db_val['frames'].append(f)
+            else:
+                raise ValueError(f"Unknown camera index: {f['camera_index']}")
+        elif f['timestep_index'] in range_test:
+            db_test['frames'].append(f)
+            assert f['camera_index'] in db_test['camera_indices'], f"Unknown camera index: {f['camera_index']}"
+        else:
+            raise ValueError(f"Unknown timestep index: {f['timestep_index']}")
+    
+    write_json(db_train, tgt_folder, division='train')
+    write_json(db_val, tgt_folder, division='val')
+    write_json(db_test, tgt_folder, division='test')

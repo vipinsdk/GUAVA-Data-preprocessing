@@ -14,10 +14,10 @@ from .base import MVBase
 class MV1PMF(MVBase):
     def __init__(self, root, cams=[], pid=0, out=None, config={}, 
         image_root='images', annot_root='annots', kpts_type='body15',
-        undis=True, no_img=False, verbose=False) -> None:
+        undis=True, no_img=False, verbose=False, mano_path=None) -> None:
         super().__init__(root=root, cams=cams, out=out, config=config, 
             image_root=image_root, annot_root=annot_root, 
-            kpts_type=kpts_type, undis=undis, no_img=no_img)
+            kpts_type=kpts_type, undis=undis, no_img=no_img, mano_path=mano_path)
         self.pid = pid
         self.verbose = verbose
 
