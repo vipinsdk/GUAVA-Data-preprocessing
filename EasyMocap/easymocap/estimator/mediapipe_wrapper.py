@@ -220,7 +220,6 @@ def extract_2d(image_root, annot_root, config, mode='holistic'):
     from glob import glob
     from os.path import join
     ext = config.pop('ext')
-    ext = '.png'
     import os
     from tqdm import tqdm
     if mode == 'holistic' or mode == 'pose':
@@ -231,8 +230,8 @@ def extract_2d(image_root, annot_root, config, mode='holistic'):
     imgnames = sorted(glob(join(image_root, '*'+ext)))
 
     for imgname in tqdm(imgnames, desc='{:10s}'.format(os.path.basename(annot_root))):
-        base = os.path.basename(imgname).replace(ext, '').split('_')
-        annotname = join(annot_root,base[0],base[1]+'.json')
+        base = os.path.basename(imgname).replace(ext, '')
+        annotname = join(annot_root,base+'.json')
         image = cv2.imread(imgname)
         annots_all, res_img = detector([image])
         annots = annots_all[0]

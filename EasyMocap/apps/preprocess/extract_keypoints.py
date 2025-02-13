@@ -147,19 +147,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config['yolo']['isWild'] = args.wild
     mode = args.mode
-    # if not os.path.exists(join(args.path, 'images')) and os.path.exists(join(args.path, 'videos')):
-    #     # default extract image
-    #     image_path = join(args.path, 'images')
-    #     os.makedirs(image_path, exist_ok=True)
-    #     subs_image = sorted(os.listdir(image_path))
-    #     subs_videos = sorted(glob(join(args.path,'videos','*.mp4')))
-    #     if len(subs_videos) > len(subs_image):
-    #         videos = sorted(glob(join(args.path,'videos','*.mp4')))
-    #         subs = []
-    #         for video in videos:
-    #             basename = extract_video(video, args.path, start=args.start, end=args.end, step=args.step)
-        # cmd = f'''python3 apps/preprocess/extract_image.py {args.path}'''
-        # os.system(cmd)
+    if not os.path.exists(join(args.path, 'images')) and os.path.exists(args.path):
+        # default extract image
+        image_path = join(args.path, 'images')
+        os.makedirs(image_path, exist_ok=True)
+        subs_image = sorted(os.listdir(image_path))
+        subs_videos = sorted(glob(join(args.path,'videos','*.mp4')))
+        if len(subs_videos) > len(subs_image):
+            videos = sorted(glob(join(args.path,'videos','*.mp4')))
+            subs = []
+            for video in videos:
+                basename = extract_video(video, args.path, start=args.start, end=args.end, step=args.step)
+        cmd = f'''python3 apps/preprocess/extract_image.py {args.path}'''
+        os.system(cmd)
     subs = load_subs(args.path, args.subs)
     if len(args.gpus) != 0:
         # perform multiprocess by runcmd

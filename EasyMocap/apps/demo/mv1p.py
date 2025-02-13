@@ -199,8 +199,8 @@ def mv1pmf_smpl(dataset, args, weight_pose=None, weight_shape=None):
         if args.vis_smpl: 
             vertices = body_model(return_verts=True, return_tensor=False, **param)
             vertices_ndc = projectN3(vertices[0], Pall=dataset.Pall)
-            mask = get_mask_tilted_line(vertices_ndc[:, :, :2])
-            mask_image_with_mask('/netscratch/jeetmal/output/BiRefNet/Ameer_full_setup/images', args.out, mask, nf, nViews=len(dataset.Pall))
+            # mask = get_mask_tilted_line(vertices_ndc[:, :, :2])
+            # mask_image_with_mask('/netscratch/jeetmal/output/BiRefNet/Ameer_full_setup/images', args.out, mask, nf, nViews=len(dataset.Pall))
             dataset.vis_smpl(vertices=vertices[0], faces=body_model.faces, images=images, nf=nf, sub_vis=args.sub_vis, add_back=True)
         if args.vis_repro:
             keypoints = body_model(return_verts=False, return_tensor=False, **param)[0]
@@ -240,7 +240,7 @@ def mv1pmf_output(dataset, args):
     #             item[key] = val.numpy()
     #     np.savez(join(smplx_params_path ,f'{nf:05d}.npz'), **item)
     dataset.write()
-    
+
 if __name__ == "__main__":
     from easymocap.mytools import load_parser, parse_parser
     from easymocap.dataset import CONFIG, MV1PMF

@@ -283,8 +283,8 @@ class VideoDataset(Dataset):
         rgb_path = self.get_property_path("image", i)
         item["image"] = Image.open(rgb_path).convert("RGB")
 
-        shape_path = self.get_property_path("shape", i)
-        item["shape"] = torch.from_numpy(np.load(shape_path)).float()
+        # shape_path = self.get_property_path("shape", i)
+        # item["shape"] = torch.from_numpy(np.load(shape_path)).float()
 
         camera_param = self.camera_params[item["camera_id"]]
         item["intrinsic"] = camera_param["intrinsic"].clone()

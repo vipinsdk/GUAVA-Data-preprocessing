@@ -64,10 +64,10 @@ def calibrate_cameras(args):
     os.chdir('..')
 
 def background_mask(input_path, output_path):
-    # if os.path.exists(output_path) and os.listdir(os.path.join(output_path, 'images')):
-    #     logging.info(f"Output folder {output_path} already exists.")
-    # else:
-        # os.makedirs(output_path, exist_ok=True)
+    if os.path.exists(output_path) and os.listdir(os.path.join(output_path, 'images')):
+        logging.info(f"Output folder {output_path} already exists.")
+    else:
+        os.makedirs(output_path, exist_ok=True)
     background_matting(input_path, output_path)
     
 
@@ -141,6 +141,15 @@ def main(args):
         os.chdir('metrical-tracker_multiview')
         flame_command = f"python tracker.py --cfg configs/actors/{args.flame_config}"
         run_command(flame_command)
+    
+    if args.mano_params:
+        logging.info("Generating MANO parameters")
+        os.chdir('hamer')
+        hamer_out = os.path.join(args.output, 'hamer')
+        source = "source"
+        root_folder = os.path.join(args.root_dir, 'videos')
+        mano_command = f"python demo_multi.py --root_folder {root_folder} --img_folder {source} --out_folder {hamer_out} --batch_size=48 --save_mesh --full_frame --save_params"
+        run_command(mano_command)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Data preprocessing for GUAVA')

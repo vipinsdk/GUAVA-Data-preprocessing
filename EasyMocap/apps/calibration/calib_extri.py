@@ -168,8 +168,36 @@ def calib_extri(path, image, intriname, image_id):
 def process_image(image_id, path, image, intriname, camnames):
     result = calib_extri(path, image, intriname=intriname, image_id=image_id)
     all_cams_exist = all(cam in result['extri'] for cam in camnames)
-    return result if all_cams_exist else None
+    return result #if all_cams_exist else None
 
+
+def estimate_extrinsics(cam1_intrinsics, cam1_extrinsics, image_points1, image_points2):
+    """
+    Estimates the extrinsic parameters of Camera 2 given Camera 1's extrinsics.
+    
+    Args:
+        cam1_intrinsics (numpy.ndarray): 3x3 intrinsic matrix of Camera 1.
+        cam1_extrinsics (tuple): (R1, t1), rotation (3x3) and translation (3x1) of Camera 1.
+        image_points1 (numpy.ndarray): Nx2 array of matched feature points in Camera 1.
+        image_points2 (numpy.ndarray): Nx2 array of matched feature points in Camera 2.
+    
+    Returns:
+        R2 (numpy.ndarray): 3x3 rotation matrix of Camera 2.
+        t2 (numpy.ndarray): 3x1 translation vector of Camera 2.
+    """
+    R1, t1 = cam1_extrinsics
+
+    # Compute the essential matrix
+    E, _ = cv2.findEssentialMat(image_points1, image_points2, cam1_intrinsics, method=cv2.RANSAC, threshold=1.0)
+
+    # Recover the relative pose between Camera 1 and Camera 2
+    _, R_1to2, t_1to2, _ = cv2.recoverPose(E, image_points1, image_points2, cam1_intrinsics)
+
+    # Compute Camera 2 extrinsics relative to world
+    R2 = R_1to2 @ R1
+    t2 = R_1to2 @ t1 + t_1to2
+
+    return R2, t2
 
 def calibrate_extrincis(path, image, intriname):    
     camnames = sorted(os.listdir(join(path, image)))

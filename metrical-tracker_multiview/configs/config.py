@@ -56,8 +56,8 @@ cfg.optimize_neck = False
 cfg.undistort = False
 cfg.crop_image = False
 cfg.alpha_map = False
-cfg.save_folder = '/netscratch/jeetmal/output/metrical-tracker/'
-cfg.root_folder = '/netscratch/jeetmal/videos/Ameer_full_setup/videos'
+cfg.root_folder = '/netscratch/jeetmal/videos/capture_10_02_2025/Ameer/videos'
+cfg.save_folder = ''
 cfg.flame_param = False
 cfg.flame_param_path = '/netscratch/jeetmal/output/metrical-tracker/'
 

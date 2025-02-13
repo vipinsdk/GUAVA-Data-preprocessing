@@ -178,7 +178,7 @@ class Tracker(object):
         self.expr = nn.Parameter(torch.from_numpy(flame_params['expr']).to(self.device))
         self.sh = nn.Parameter(torch.from_numpy(flame_params['sh']).to(self.device))
         self.shape = nn.Parameter(torch.from_numpy(flame_params['shape']).to(self.device))
-        self.mica_shape = nn.Parameter(torch.from_numpy(flame_params['shape']).to(self.device))
+        # self.mica_shape = nn.Parameter(torch.from_numpy(flame_params['shape']).to(self.device))
         self.eyes = nn.Parameter(torch.from_numpy(flame_params['eyes_pose']).to(self.device))
         self.eyelids = nn.Parameter(torch.from_numpy(flame_params['eyelids']).to(self.device))
         self.jaw = nn.Parameter(torch.from_numpy(flame_params['jaw_pose']).to(self.device))
@@ -307,7 +307,7 @@ class Tracker(object):
         self.translation = nn.Parameter(torch.zeros(bz, 3).float().to(self.device))
         # self.shape = nn.Parameter(self.mica_shape)
         self.shape = nn.Parameter(torch.zeros(bz, self.config.num_shape_params).float().to(self.device))
-        self.mica_shape = nn.Parameter(self.mica_shape)
+        # self.mica_shape = nn.Parameter(self.mica_shape)
         self.tex = nn.Parameter(torch.zeros(bz, self.config.tex_params).float().to(self.device))
         self.expr = nn.Parameter(torch.zeros(bz, self.config.num_exp_params).float().to(self.device))
         self.sh = nn.Parameter(torch.zeros(bz, 9, 3).float().to(self.device))
@@ -400,8 +400,8 @@ class Tracker(object):
         images, landmarks, landmarks_dense, lmk_dense_mask, lmk_mask = self.parse_batch(batch)
         
         h, w = images.shape[2:4]
-        self.shape = batch['shape']
-        self.mica_shape = batch['shape'].clone().detach()  # Save it for regularization
+        # self.shape = batch['shape']
+        # self.mica_shape = batch['shape'].clone().detach()  # Save it for regularization
 
         # Important to initialize
         self.create_parameters()
