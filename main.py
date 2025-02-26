@@ -128,8 +128,8 @@ def main(args):
     if args.annots:
         logging.info("Generating annotations using Mediapipe")
         os.chdir('EasyMocap')
-        images = os.path.join(args.root_dir, 'videos')
-        annots_command = f"python3 apps/preprocess/extract_keypoints.py {images} --mode {args.mode}"
+        videos = os.path.join(base_path, 'videos')
+        annots_command = f"python3 apps/preprocess/extract_keypoints.py {videos} --mode {args.mode} --output {args.output}"
         run_command(annots_command)
         os.chdir('..')
     

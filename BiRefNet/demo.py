@@ -36,8 +36,8 @@ def background_matting(folder_path, output_folder):
     ])
 
     # Create output directory if it doesn't exist
-    images_out = os.path.join(folder_path, 'images')
-    masks_out = os.path.join(folder_path, 'fg_masks')
+    images_out = os.path.join(output_folder, 'images')
+    masks_out = os.path.join(output_folder, 'fg_masks')
     if not os.path.exists(images_out):
         os.makedirs(images_out, exist_ok=True)
         os.makedirs(masks_out, exist_ok=True)
@@ -72,10 +72,13 @@ def background_matting(folder_path, output_folder):
         image_masked = image.resize((1024, 1024))
         image_masked.putalpha(pred_pil)
 
-        image_file = os.path.basename(image_file)
-        image_file = image_file.replace('.jpg', '.png')
+        cam_name, image_file = os.path.basename(image_file).split('_')
+        cam_folder = os.path.join(images_out, cam_name)
+        if not os.path.exists(cam_folder):
+            os.makedirs(cam_folder, exist_ok=True)
+        # image_file = image_file.replace('.jpg', '.png')
         
-        output_path_mask = os.path.join(images_out, image_file)
+        output_path_mask = os.path.join(images_out, cam_folder, image_file)
         output_path_pred = os.path.join(masks_out, image_file)
         
         image_masked = F_t.to_tensor(image_masked.resize(scaled_size)).to(device)
@@ -87,8 +90,8 @@ def background_matting(folder_path, output_folder):
         # Now image is RGB, with a white background in transparent regions
         image_masked = image_masked[:3, :, :]  # Drop alpha channel, keeping only RGB
         image_masked = transform(image_masked.cpu())
-        image_masked.save(output_path_mask, format="PNG")
-        # pred_pil.resize(scaled_size).save(output_path_pred, format="PNG")
+        image_masked.save(output_path_mask)
+        pred_pil.resize(scaled_size).save(output_path_pred, format="PNG")
 
     print("Processing complete!")
 

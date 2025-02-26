@@ -722,35 +722,35 @@ class Tracker(object):
             # depth = depth_view[0].permute(1, 2, 0)[..., 2:].cpu().numpy() * 1000.0
             # cv2.imwrite('{}/{}.png'.format(self.depth_folder, frame_id), depth.astype(np.uint16))
 
-            mask = self.get_mask_tilted_line(verts_ndc)
-            transform = T.ToPILImage()
-            for j in range(self.num_cameras):
-                rgb_path = self.config.flame_param_path + "/" + f"{self.frame:05d}_{j:02d}.png"
-                mask_path = rgb_path.replace("images", "fg_masks")
-                image = F_t.to_tensor(Image.open(rgb_path).convert("RGBA")).to(self.device)
-                fg_mask = F_t.to_tensor(Image.open(mask_path).convert("RGB")).to(self.device)
+            # mask = self.get_mask_tilted_line(verts_ndc)
+            # transform = T.ToPILImage()
+            # for j in range(self.num_cameras):
+            #     rgb_path = self.config.flame_param_path + "/" + f"{self.frame:05d}_{j:02d}.png"
+            #     mask_path = rgb_path.replace("images", "fg_masks")
+            #     image = F_t.to_tensor(Image.open(rgb_path).convert("RGBA")).to(self.device)
+            #     fg_mask = F_t.to_tensor(Image.open(mask_path).convert("RGB")).to(self.device)
 
-                # Create a white background (1, H, W) - in this case, white is [1, 1, 1] for RGB
-                white_background = torch.ones_like(image[:3, :, :], device=self.device)  # RGB channels only
-                # Set the alpha channel
-                alpha = image[3, :, :]  # Alpha channel (transparency)
-                # Replace areas where alpha is 0 (transparent) with the white background
-                image[:3, :, :] = alpha.unsqueeze(0) * image[:3, :, :] + (1 - alpha.unsqueeze(0)) * white_background
-                # Now image is RGB, with a white background in transparent regions
-                image = image[:3, :, :]  # Drop alpha channel, keeping only RGB
+            #     # Create a white background (1, H, W) - in this case, white is [1, 1, 1] for RGB
+            #     white_background = torch.ones_like(image[:3, :, :], device=self.device)  # RGB channels only
+            #     # Set the alpha channel
+            #     alpha = image[3, :, :]  # Alpha channel (transparency)
+            #     # Replace areas where alpha is 0 (transparent) with the white background
+            #     image[:3, :, :] = alpha.unsqueeze(0) * image[:3, :, :] + (1 - alpha.unsqueeze(0)) * white_background
+            #     # Now image is RGB, with a white background in transparent regions
+            #     image = image[:3, :, :]  # Drop alpha channel, keeping only RGB
 
-                mask_float = mask[j].float()
-                image = image * mask_float[None, :, :] + (1 - mask_float[None, :, :]) * white_background
-                fg_mask = mask[j] * fg_mask 
-                img_save_path = f"{self.save_folder}" + self.actor_name + "/images/" + f"{self.frame:05d}_{j:02d}.png"
-                mask_save_path = img_save_path.replace("images", "fg_masks")
-                if not os.path.exists(os.path.dirname(img_save_path)):
-                    os.makedirs(os.path.dirname(img_save_path))
-                    os.makedirs(os.path.dirname(mask_save_path))
-                img = transform(image.cpu())
-                fg_mask = transform(fg_mask.cpu())
-                img.save(img_save_path)
-                fg_mask.save(mask_save_path)
+            #     mask_float = mask[j].float()
+            #     image = image * mask_float[None, :, :] + (1 - mask_float[None, :, :]) * white_background
+            #     fg_mask = mask[j] * fg_mask 
+            #     img_save_path = f"{self.save_folder}" + self.actor_name + "/images/" + f"{self.frame:05d}_{j:02d}.png"
+            #     mask_save_path = img_save_path.replace("images", "fg_masks")
+            #     if not os.path.exists(os.path.dirname(img_save_path)):
+            #         os.makedirs(os.path.dirname(img_save_path))
+            #         os.makedirs(os.path.dirname(mask_save_path))
+            #     img = transform(image.cpu())
+            #     fg_mask = transform(fg_mask.cpu())
+            #     img.save(img_save_path)
+            #     fg_mask.save(mask_save_path)
 
     def optimize_frame(self, batch):
         batch = self.to_cuda(batch)

@@ -29,6 +29,7 @@ torchvision.disable_beta_transforms_warning()
 timings = {}
 BATCH_SIZE = 32
 
+upperbody_parts = {1,2,3,5,6,10,14,15,19,21,22,23,24,25,26,27}
 
 def warmup_model(model, batch_size):
     imgs = torch.randn(batch_size, 3, 1024, 768).to(dtype=model.dtype).cuda()
@@ -58,7 +59,7 @@ def fake_pad_images_to_batchsize(imgs):
 
 
 def img_save_and_viz(
-    image, result, output_path, classes, palette, title=None, opacity=0.5, threshold=0.3, 
+    image, result, output_path, fg_mask_dir, classes, palette, title=None, opacity=0.5, threshold=0.3, 
 ):
     output_file = (
         output_path.replace(".jpg", ".png")
@@ -70,6 +71,16 @@ def img_save_and_viz(
         .replace(".jpeg", ".png")
         .replace(".png", "_seg.npy")
     )
+
+    cam, image_id = os.path.basename(output_path).split("_")
+    image_id = int(image_id.split(".")[0])
+    cam = int(cam)
+    fg_mask_file = os.path.join(fg_mask_dir, f"{image_id:05d}_{cam:02d}.png")
+
+    images_path = fg_mask_dir.replace("fg_masks", "images")
+    if not os.path.exists(images_path):
+        os.makedirs(images_path, exist_ok=True)
+    image_file = os.path.join(images_path, f"{image_id:05d}_{cam:02d}.png")
 
     image = image.data.numpy() ## bgr image
 
@@ -89,6 +100,9 @@ def img_save_and_viz(
     np.save(output_file, mask)
     np.save(output_seg_file, pred_sem_seg)
 
+    upper_body_mask = np.isin(pred_sem_seg, list(upperbody_parts)).astype(np.uint8)
+    cv2.imwrite(fg_mask_file, upper_body_mask * 255)
+
     num_classes = len(classes)
     sem_seg = pred_sem_seg
     ids = np.unique(sem_seg)[::-1]
@@ -104,6 +118,11 @@ def img_save_and_viz(
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     vis_image = (image_rgb * (1 - opacity) + mask * opacity).astype(np.uint8)
 
+    white_bkg = np.ones_like(image) * 255
+    upper_body_mask = np.repeat(upper_body_mask[:, :, np.newaxis], 3, axis=2)
+    output = np.where(upper_body_mask == 1, image, white_bkg)
+    cv2.imwrite(image_file, output)
+    
     vis_image = cv2.cvtColor(vis_image, cv2.COLOR_RGB2BGR)
     vis_image = np.concatenate([image, vis_image], axis=1)
     cv2.imwrite(output_path, vis_image)
@@ -210,6 +229,11 @@ def main():
 
     if not os.path.exists(args.output_root):
         os.makedirs(args.output_root)
+    
+    # create a fg_masks folder
+    fg_masks_dir = os.path.join(args.output_root, "fg_masks")
+    if not os.path.exists(fg_masks_dir):
+        os.makedirs(fg_masks_dir)
 
     global BATCH_SIZE
     BATCH_SIZE = args.batch_size
@@ -245,6 +269,7 @@ def main():
                 i,
                 r,
                 os.path.join(args.output_root, os.path.basename(img_name)),
+                fg_masks_dir,
                 GOLIATH_CLASSES,
                 GOLIATH_PALETTE,
                 args.title,

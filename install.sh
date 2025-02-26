@@ -19,8 +19,14 @@ if [[ $SLURM_LOCALID == 0 ]]; then
     libgl1-mesa-dev \
     libegl1-mesa-dev \
     libgles2-mesa-dev \
-    libglib2.0-0
+    libglib2.0-0 \
+    python3-opengl
     apt-get install -y ffmpeg
+
+    # conda install -c conda-forge colmap -y
+    # pip install pycolmap
+
+    export PYOPENGL_PLATFORM=osmesa
    
   # Tell other tasks we are done installing
   touch "${DONEFILE}"

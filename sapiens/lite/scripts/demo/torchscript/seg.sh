@@ -28,7 +28,7 @@ RUN_FILE='demo/vis_seg.py'
 
 ## number of inference jobs per gpu, total number of gpus and gpu ids
 # JOBS_PER_GPU=4; TOTAL_GPUS=8; VALID_GPU_IDS=(0 1 2 3 4 5 6 7)
-JOBS_PER_GPU=1; TOTAL_GPUS=1; VALID_GPU_IDS=(0)
+JOBS_PER_GPU=4; TOTAL_GPUS=1; VALID_GPU_IDS=(0)
 
 BATCH_SIZE=8
 
